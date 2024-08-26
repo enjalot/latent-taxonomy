@@ -1,0 +1,8 @@
+.container {
+  display: flex;
+  align-items: center;
+}
+
+.clearButton {
+  margin-left: 8px;
+}
