@@ -8,7 +8,8 @@
 }
 
 .pageTitle {
-  margin-bottom: 24px;
+  padding-top: 20px;
+  /* margin-bottom: 24px; */
 }
 
 .fullHeightRow {
@@ -65,4 +66,9 @@
   font-size: 12px;
   font-weight: normal;
   line-height: 30px;;
+}
+
+.scatters {
+  /* So we can stack the scatter plots  */
+  position: relative;
 }

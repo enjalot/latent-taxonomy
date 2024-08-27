@@ -5,7 +5,12 @@ import { interpolateTurbo } from 'd3-scale-chromatic';
 
 import styles from './FeatureSelect.module.css';
 
-const FeatureSelect = ({ options, value, onSelect }) => {
+const FeatureSelect = ({ 
+  options, 
+  value, 
+  onSelect = () => {},
+  onFilter = () => {}
+} = {}) => {
   const [searchValue, setSearchValue] = useState('');
 
   const handleSearch = (value) => {
@@ -26,8 +31,16 @@ const FeatureSelect = ({ options, value, onSelect }) => {
   ), [options, searchValue]);
 
   useEffect(() => {
-    console.log("current value", value)
-  }, [value])
+    if(filteredOptions.length !== options.length) {
+      onFilter(filteredOptions);
+    } else {
+      onFilter([]);
+    }
+  }, [filteredOptions ]);
+
+  useEffect(() => {
+    console.log("BALUE", value)
+  }, [value]);
 
   return (
     <div className={styles.container}>
@@ -41,7 +54,7 @@ const FeatureSelect = ({ options, value, onSelect }) => {
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
-                  backgroundColor: interpolateTurbo(option.order / (filteredOptions.length - 1)),
+                  backgroundColor: interpolateTurbo(option.order),
                   marginRight: '8px',
                 }}
               />

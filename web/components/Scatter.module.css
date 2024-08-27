@@ -1,6 +1,6 @@
 
 .scatter {
-  /* position: absolute; */
+  position: absolute;
   background-color: #fefefe;
   user-select: none;
 }

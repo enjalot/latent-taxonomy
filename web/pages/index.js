@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Typography, Card, Row, Col, Select } from 'antd';
-import { interpolateTurbo } from 'd3-scale-chromatic';
+import { interpolateTurbo, interpolateCool } from 'd3-scale-chromatic';
 import {Tooltip} from 'react-tooltip';
 
 import Layout from '../components/Layout';
 import FeatureSelect from '../components/FeatureSelect';
+import FeatureDetails from '../components/FeatureDetails';
 import Scatter from '../components/Scatter';
 import StaticScatter from '../components/StaticScatter';
 
@@ -79,6 +80,7 @@ export default function Home() {
         file: buffer,
         onComplete: data => {
           // let pts = []
+          console.log("DATA", data)
           let fts = data.map(f => {
             // pts.push([f[2], f[3], parseInt(f[5])])
             return {
@@ -86,13 +88,15 @@ export default function Home() {
               max_activation: f[1],
               x: f[2],
               y: f[3],
-              label: f[4],
-              order: parseInt(f[5])
+              top10_x: f[4],
+              top10_y: f[5],
+              label: f[6],
+              order: f[7],
             }
           })
+          // .filter(d => d.label.indexOf("linear") >= 0)
           // .sort((a,b) => a.order - b.order)
-          let pts = fts.map(f => [f.x, f.y, f.x])
-          console.log("POOINTS", pts)
+          let pts = fts.map(f => [f.top10_x, f.top10_y, f.order])
           setFeatures(fts)
           setPoints(pts)
         }
@@ -100,15 +104,26 @@ export default function Home() {
     }
     asyncRead()
   }, [])
-  useEffect(() => {
-    console.log("FEATURES", features)
-  }, [features])
+  // useEffect(() => {
+  //   console.log("FEATURES", features)
+  // }, [features])
 
 
   const [selectedFeature, setSelectedFeature] = useState(features[0]);
   const handleFeatureSelect = (feature) => {
     setSelectedFeature(feature);
+    if(feature) {
+      setSelectedIndices([feature.feature]) 
+    } else {
+      setSelectedIndices([])
+    }
     console.log("FEATURE SELECTED", feature)
+  }
+
+  const [filteredIndices, setFilteredIndices] = useState(null)
+  const handleFilter = (options) => {
+    const indices = options.slice(0,100).map(o => o.feature)
+    setFilteredIndices(indices)
   }
 
   const [selectedModel, setSelectedModel] = useState(models[0])
@@ -141,9 +156,10 @@ export default function Home() {
   const [selectedIndices, setSelectedIndices] = useState([]);
 
   const handleSelected = useCallback((indices) => {
-    // console.log("handle selected", indices)
+    console.log("handle selected", indices, features[indices[0]])
+    setSelectedFeature(features[indices[0]])
     setSelectedIndices(indices)
-  }, [setSelectedIndices])
+  }, [setSelectedIndices, features])
 
   // Hover via scatterplot or tables
   // index of item being hovered over
@@ -157,10 +173,10 @@ export default function Home() {
     if (hoveredIndex !== null && hoveredIndex !== undefined) {
       setHovered(hoveredIndex);
       const feature = features[hoveredIndex];
-      console.log("hovered", hoveredIndex, feature)
+      // console.log("hovered", hoveredIndex, feature)
       if (feature) {
-        const xPos = ((feature.x - xDomain[0]) / (xDomain[1] - xDomain[0])) * dimensions.width;
-        const yPos = ((feature.y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 57;
+        const xPos = ((feature.top10_x - xDomain[0]) / (xDomain[1] - xDomain[0])) * dimensions.width;
+        const yPos = ((feature.top10_y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 57;
         setTooltipPosition({ x: xPos - .5*16, y: yPos - .67*16 });
         setHoveredFeature(feature)
       }
@@ -208,7 +224,8 @@ export default function Home() {
                     colorScaleType="continuous"
                     // colorScaleType="categorical"
                     colorInterpolator={interpolateTurbo}
-                    pointScale={2}
+                    pointScale={1}
+                    pointColor={"#444"}
                     onScatter={setScatter}
                     onView={handleView}
                     onSelect={handleSelected}
@@ -222,7 +239,30 @@ export default function Home() {
                   width={dimensions.width}
                   height={dimensions.height}
                 /> }
-                </> : null }
+
+                {filteredIndices?.length && <StaticScatter
+                  points={filteredIndices.map(i => points[i])}
+                  stroke="black"
+                  fill="orange"
+                  size="8"
+                  xDomain={xDomain}
+                  yDomain={yDomain}
+                  width={dimensions.width}
+                  height={dimensions.height}
+                />}
+
+                {selectedIndices?.length && <StaticScatter
+                  points={selectedIndices.map(i => points[i])}
+                  stroke="black"
+                  fill="black"
+                  symbol="⭐️"
+                  size="16"
+                  xDomain={xDomain}
+                  yDomain={yDomain}
+                  width={dimensions.width}
+                  height={dimensions.height}
+                />}
+              </> : null }
             </div>
             
             <div
@@ -255,15 +295,12 @@ export default function Home() {
                   options={features} 
                   value={selectedFeature} 
                   onSelect={handleFeatureSelect} 
+                  onFilter={handleFilter}
                 />
               } 
               className={styles.fullHeightCard}
             >
-              <div className={styles.scrollableContent}>
-                {/* {[...Array(100)].map((_, i) => (
-                  <p key={i}>Scrollable content line {i + 1}</p>
-                ))} */}
-              </div>
+             <FeatureDetails feature={selectedFeature} /> 
             </Card>
           </Col>
         </Row>

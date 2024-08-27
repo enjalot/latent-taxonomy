@@ -1,6 +1,6 @@
 
 
-.annotation-plot {
-  /* position: absolute; */
+.statics {
+  position: absolute;
   pointer-events: none;
 }

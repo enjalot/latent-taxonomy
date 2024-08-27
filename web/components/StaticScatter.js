@@ -20,7 +20,7 @@ const StaticScatter = ({
     if(xDomain && yDomain) {
       const xScale = scaleLinear()
         .domain(xDomain)
-        .range([0, width])
+        .range([0, width - 20])
       const yScale = scaleLinear()
         .domain(yDomain)
         .range([height, 0])
@@ -28,12 +28,13 @@ const StaticScatter = ({
       const zScale = (t) => t/(.1 + xDomain[1] - xDomain[0])
       const canvas = container.current
       const ctx = canvas.getContext('2d')
+      let rw = zScale(size)
       ctx.clearRect(0, 0, width, height)
       ctx.fillStyle = fill 
       ctx.strokeStyle = stroke
-      ctx.font = `${zScale(size)}px monospace`
-      ctx.globalAlpha = 0.75
-      let rw = zScale(size)
+      ctx.font = `${rw}px monospace`
+      // ctx.globalAlpha = 0.75
+      ctx.globalAlpha = 1
       if(!points.length) return
       points.map(point => {
         if(!point) return;
@@ -42,14 +43,14 @@ const StaticScatter = ({
         if(stroke)
           ctx.strokeRect(xScale(point[0]) - rw/2, yScale(point[1]) - rw/2, rw, rw)
         if(symbol)
-          ctx.fillText(symbol, xScale(point[0]) - rw/3.2, yScale(point[1]) + rw/3.2)
+          ctx.fillText(symbol, xScale(point[0]) - rw/2.2, yScale(point[1]) + rw/3.2)
       })
     }
 
   }, [points, fill, stroke, size, xDomain, yDomain, width, height])
 
   return <canvas 
-    className={styles.annotationPlot}
+    className={styles.statics}
     ref={container} 
     width={width} 
     height={height} />;

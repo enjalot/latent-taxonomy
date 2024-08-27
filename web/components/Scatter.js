@@ -56,6 +56,7 @@ function ScatterPlot ({
   height, 
   duration = 0,
   pointScale = 1,
+  pointColor = [250/255, 128/255, 114/255, 1],
   colorScaleType = null,
   colorInterpolator = interpolateCool,
   opacityBy,
@@ -138,7 +139,6 @@ function ScatterPlot ({
       const pointSize = calculatePointSize(points.length) * pointScale;
       const opacity = calculatePointOpacity(points.length);
       // console.log("point size", pointSize, opacity)
-      let pointColor = [250/255, 128/255, 114/255, 1] //salmon
 
       // let drawPoints = points
       // let categories = points[0].length === 3 ? true : false
