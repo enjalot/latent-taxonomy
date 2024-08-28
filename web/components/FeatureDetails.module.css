@@ -2,12 +2,43 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
+  height: calc(100% - 70px);
+  overflow-y: auto;
 }
 
 
 .samples {
-  flex: 1;
-  /* height: 100%; */
-  overflow-y: auto;
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sample {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid lightgray;
+  padding: 12px;
+  border-radius: 4px;
+}
+.sampleActivationBar {
+  /* height: 12px; */
+}
+.sampleText {
+  font-size: 12px;
+}
+
+.similarFeatures {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.similarFeature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }

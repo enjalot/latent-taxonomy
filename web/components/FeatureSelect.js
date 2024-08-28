@@ -23,7 +23,7 @@ const FeatureSelect = ({
     const selectedOption = options.find(option => option.feature === value);
     onSelect(selectedOption);
     onFilter([])
-    setInputValue(value);
+    setInputValue(selectedOption.label);
   };
   const handleClear = () => {
     onSelect(null);
@@ -45,6 +45,11 @@ const FeatureSelect = ({
 
   useEffect(() => {
     console.log("BALUE", value)
+    if(value) {
+      setInputValue(value.label);
+    } else {
+      setInputValue('');
+    }
   }, [value]);
 
   return (
