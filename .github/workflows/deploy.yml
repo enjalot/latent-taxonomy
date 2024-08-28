@@ -34,16 +34,10 @@ jobs:
       - name: Build with Next.js
         run: npm run build
         working-directory: web
-      - name: Static HTML export with Next.js
-        run: npm run export
-        working-directory: web
-      - name: Copy public folder to out directory
-        run: cp -R public/* out/
-        working-directory: web
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          path: web/out
+          path: web/.next
 
   deploy:
     environment:
