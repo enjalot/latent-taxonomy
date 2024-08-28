@@ -116,10 +116,10 @@ function ScatterPlot ({
       onSelect && onSelect([])
     });
     scatterplot.subscribe("pointOver", (pointIndex) => {
-      onHover && onHover(pointIndex)
+      onHover && onHover(pointIndex);
     });
-    scatterplot.subscribe("pointOut", () => {
-      onHover && onHover(null)
+    scatterplot.subscribe("pointOut", (pointIndex) => {
+      onHover && onHover(null);
     });
   
     onScatter && onScatter(scatterplot)

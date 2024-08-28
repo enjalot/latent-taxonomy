@@ -30,25 +30,6 @@ const models = [
    //{ label: "NOMIC_FWEDU_100k", value: "NOMIC_FWEDU_100k" },
 ]
 
-// This is a placeholder for your actual visualization component
-const VisualizationPlaceholder = ({ width, height }) => (
-  <div 
-    style={{ 
-      width: width, 
-      height: height, 
-      backgroundColor: '#f0f0f0', 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center',
-      border: '1px dashed #ccc'
-    }}
-  >
-    <p>Your Visualization Here</p>
-    <p>Width: {width}px, Height: {height}px</p>
-  </div>
-);
-
-
 export default function Home() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const mainCardRef = useRef(null);
@@ -108,18 +89,6 @@ export default function Home() {
   //   console.log("FEATURES", features)
   // }, [features])
 
-
-  const [selectedFeature, setSelectedFeature] = useState(features[0]);
-  const handleFeatureSelect = (feature) => {
-    setSelectedFeature(feature);
-    if(feature) {
-      setSelectedIndices([feature.feature]) 
-    } else {
-      setSelectedIndices([])
-    }
-    console.log("FEATURE SELECTED", feature)
-  }
-
   const [filteredIndices, setFilteredIndices] = useState(null)
   const handleFilter = (options) => {
     const indices = options.slice(0,100).map(o => o.feature)
@@ -174,10 +143,13 @@ export default function Home() {
       setHovered(hoveredIndex);
       const feature = features[hoveredIndex];
       // console.log("hovered", hoveredIndex, feature)
-      if (feature) {
+      if (feature && xDomain && yDomain) {
         const xPos = ((feature.top10_x - xDomain[0]) / (xDomain[1] - xDomain[0])) * dimensions.width;
         const yPos = ((feature.top10_y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 57;
-        setTooltipPosition({ x: xPos - .5*16, y: yPos - .67*16 });
+        setTooltipPosition({ 
+          x: xPos,// - .5*16, 
+          y: yPos// - .67*16 
+        });
         setHoveredFeature(feature)
       }
     } else {
@@ -189,6 +161,19 @@ export default function Home() {
   const handleHover = useCallback((index) => {
     setHoveredIndex(index);
   }, [setHoveredIndex])
+
+  const [selectedFeature, setSelectedFeature] = useState(features[0]);
+  const handleFeatureSelect = useCallback((feature) => {
+    console.log("FEATURE SELECTED", feature)
+    setSelectedFeature(feature);
+    if(feature) {
+      scatter.select([feature.feature])
+      // setSelectedIndices([feature.feature]) 
+    } else {
+      scatter.select([])
+      // setSelectedIndices([])
+    }
+  }, [scatter, setSelectedIndices])
 
 
 
@@ -243,7 +228,7 @@ export default function Home() {
                 {filteredIndices?.length && <StaticScatter
                   points={filteredIndices.map(i => points[i])}
                   stroke="black"
-                  fill="orange"
+                  fill="gray"
                   size="8"
                   xDomain={xDomain}
                   yDomain={yDomain}
@@ -255,8 +240,8 @@ export default function Home() {
                   points={selectedIndices.map(i => points[i])}
                   stroke="black"
                   fill="black"
-                  symbol="⭐️"
-                  size="16"
+                  // symbol="⭐️"
+                  size="12"
                   xDomain={xDomain}
                   yDomain={yDomain}
                   width={dimensions.width}
@@ -273,7 +258,7 @@ export default function Home() {
                 top: tooltipPosition.y,
                 pointerEvents: 'none',
               }}
-            >⭐️</div>
+            ></div>
             <Tooltip id="featureTooltip" 
               isOpen={hoveredIndex !== null}
               style={{

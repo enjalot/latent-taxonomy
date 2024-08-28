@@ -12,17 +12,22 @@ const FeatureSelect = ({
   onFilter = () => {}
 } = {}) => {
   const [searchValue, setSearchValue] = useState('');
+  const [inputValue, setInputValue] = useState('');
 
   const handleSearch = (value) => {
     setSearchValue(value);
+    setInputValue(value);
   };
 
   const handleSelect = (value) => {
     const selectedOption = options.find(option => option.feature === value);
     onSelect(selectedOption);
+    onFilter([])
+    setInputValue(value);
   };
   const handleClear = () => {
     onSelect(null);
+    setInputValue('');
   };
 
   const filteredOptions = useMemo(() => options.filter(option =>
@@ -62,7 +67,7 @@ const FeatureSelect = ({
             </div>
           ),
         }))}
-        value={value?.feature}
+        value={inputValue}
         onSearch={handleSearch}
         onSelect={handleSelect}
         placeholder="Select a feature"
@@ -70,7 +75,7 @@ const FeatureSelect = ({
       />
       <Button
         onClick={handleClear}
-        disabled={!value}
+        disabled={!inputValue}
         icon={<CloseCircleOutlined />}
         className={styles.clearButton}
       />
