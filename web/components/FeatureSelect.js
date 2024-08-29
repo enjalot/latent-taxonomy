@@ -20,7 +20,7 @@ const FeatureSelect = ({
   };
 
   const handleSelect = (value) => {
-    const selectedOption = options.find(option => option.feature === value);
+    const selectedOption = options.find(option => option.feature === +value);
     onSelect(selectedOption);
     onFilter([])
     setInputValue(selectedOption.label);
@@ -44,7 +44,6 @@ const FeatureSelect = ({
   }, [filteredOptions ]);
 
   useEffect(() => {
-    console.log("BALUE", value)
     if(value) {
       setInputValue(value.label);
     } else {
@@ -56,7 +55,7 @@ const FeatureSelect = ({
     <div className={styles.container}>
       <AutoComplete
         options={filteredOptions.map(option => ({
-          value: option.feature,
+          value: String(option.feature),
           label: (
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <span

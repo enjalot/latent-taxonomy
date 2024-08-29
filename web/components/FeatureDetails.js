@@ -3,6 +3,7 @@ import { Typography, Descriptions } from 'antd';
 import { interpolateTurbo } from 'd3-scale-chromatic';
 import { rgb } from 'd3-color';
 const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
+import { useRouter } from 'next/router'; // Import useRouter from next/router
 
 import styles from './FeatureDetails.module.css';
 
@@ -13,41 +14,73 @@ function yiq(color) {
 
 const { Title, Paragraph } = Typography;
 
+const ActivationBar = ({
+  feature,
+  activation,
+  content,
+  onHover = () => {},
+  onSelect = () => {},
+}) => {
+  const featureColor = useMemo(() => interpolateTurbo(feature?.order), [feature])
+  return (
+    <div className={styles.sampleActivationBar} 
+      onMouseEnter={() => onHover(feature)}
+      onMouseLeave={() => onHover(null)}
+      onClick={() => onSelect(feature)}
+    >
+      <div className={styles.sampleActivationBarForeground} 
+        style={{
+          width: `${activation/feature.max_activation * 100}%`, 
+          backgroundColor: featureColor,
+        }}
+      >
+      </div>
+      <div className={styles.sampleActivationBarLabel} 
+      style={{
+        // color: yiq(featureColor) >= 0.6 ? "#111" : "white",
+      }}>
+        <span>{feature.feature}: {feature.label}</span><span>{activation.toFixed(3)} ({(100*activation/feature.max_activation).toFixed(0)}%)</span>
+      </div>
+    </div>
+  )
+}
+
 const FeatureDetails = ({ 
   feature,
   model,
   chunkMapping,
   nearestFeatures,
+  features,
   onHover = () => {},
   onSelect = () => {}
 }) => {
   // Fetch samples 
   const [samples, setSamples] = useState([])
+  const router = useRouter(); // Use useRouter from next/router
+  const basePath = useMemo(() => router.basePath, [router])
   useEffect(() => {
     if(!model || !feature) return;
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet`)
+      const buffer = await asyncBufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet`)
       const data = await parquetRead({
         file: buffer,
+        rowFormat: 'object',
         onComplete: data => {
           // console.log("SAMPLE DATA", data)
-          let ss = data.map(f => {
+          let ss = data.map(d => {
             return {
-              id: f[0],
-              text: f[1],
-              feature: parseInt(f[2]),
-              activation: f[3],
-              top_acts: f[4],
-              top_indices: f[5],
+              ...d,
+              feature: parseInt(d.feature)
             }
-          }).filter(d => d.feature === feature.feature)
+          })
+          .filter(d => d.feature === feature.feature)
           console.log("SAMPLES", ss)
           setSamples(ss)
         }
       })
     }
     asyncRead()
-  }, [feature, chunkMapping, model])
+  }, [feature, chunkMapping, model, basePath])
 
   useEffect(() => {
     console.log("samples", samples.length)
@@ -91,27 +124,33 @@ const FeatureDetails = ({
           <div>
             {samples.map((sample,i) => (
               <div key={"sample-"+i} className={styles.sample}>
-                <div className={styles.sampleActivationBar} style={{
-                  width: `100%`, 
-                  border: "1px solid lightgray",
-                  height: "14px"
-                }}>
-                  <div style={{
-                    width: `${sample.activation/feature.max_activation * 100}%`, 
-                    backgroundColor: featureColor,
-                    color: yiq(featureColor) >= 0.6 ? "#111" : "white",
-                    height: "12px",
-                    fontSize: "10px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "left",
-                    paddingLeft: "2px"
-                  }}>
-                    {sample.activation.toFixed(2)}
-                  </div>
-                </div>
+                {/* <ActivationBar 
+                  feature={feature}
+                  activation={sample.activation}
+                /> */}
+                <div className={styles.sampleId}><a href={sample.url} target="_blank">{sample.id}</a></div>
                 <div className={styles.sampleText}>{sample.text}</div>
-                <div className={styles.sampleTopFeatures}></div>
+                <div className={styles.sampleTopFeatures}>
+                  {sample.top_acts.map((act,i) => {
+                    let f = features[sample.top_indices[i]]
+                    return {
+                      i,
+                      feature: f,
+                      activation: act,
+                      percent: act/f.max_activation
+                    }
+                  }).sort((a,b) => b.percent - a.percent)
+                  .slice(0, 10)
+                  .map(f => (
+                    <ActivationBar
+                      key={f.i}
+                      feature={f.feature}
+                      activation={f.activation}
+                      onHover={onHover}
+                      onSelect={onSelect}
+                    />
+                  ))}
+                </div>
               </div>
             ))}
           </div>

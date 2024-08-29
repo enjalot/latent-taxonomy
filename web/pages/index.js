@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router'; // Import useRouter from next/router
 import { Typography, Card, Row, Col, Select } from 'antd';
 
@@ -16,8 +16,6 @@ import StaticScatter from '../components/StaticScatter';
 const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
 
 const getWindow = () => (typeof window !== 'undefined' ? window : { location: { hash: '' } });
-
-
 
 import styles from './index.module.css';
 
@@ -42,6 +40,7 @@ export default function Home() {
   const mainCardRef = useRef(null);
 
   const router = useRouter(); // Use useRouter from next/router
+  const basePath = useMemo(() => router.basePath, [router])
   const queryParams = router.query;
   // const initialModel = queryParams.model || models[0].value;
   // const initialFeature = queryParams.feature;
@@ -95,7 +94,7 @@ export default function Home() {
   const [points, setPoints] = useState([])
   useEffect(() => {
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`/models/${selectedModel.label}/features.parquet`)
+      const buffer = await asyncBufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet`)
       const data = await parquetRead({
         file: buffer,
         onComplete: data => {
@@ -123,7 +122,7 @@ export default function Home() {
       })
     }
     asyncRead()
-  }, [selectedModel])
+  }, [selectedModel, basePath])
 
   const [quadtreeInstance, setQuadtreeInstance] = useState(null);
 
@@ -168,13 +167,13 @@ export default function Home() {
   const [chunkMapping, setChunkMapping] = useState(null)
   useEffect(() => {
     const asyncRead = async () => {
-      const meta = await fetch(`/models/${selectedModel.label}/metadata.json`).then(r => r.json())
+      const meta = await fetch(`${basePath}/models/${selectedModel.label}/metadata.json`).then(r => r.json())
       setModelMetadata(meta)
-      const chunkMapping = await fetch(`/models/${selectedModel.label}/chunk_mapping.json`).then(r => r.json())
+      const chunkMapping = await fetch(`${basePath}/models/${selectedModel.label}/chunk_mapping.json`).then(r => r.json())
       setChunkMapping(chunkMapping)
     }
     asyncRead()
-  }, [selectedModel])
+  }, [selectedModel, basePath])
 
   // ====================================================================================================
   // Scatterplot related logic
@@ -387,6 +386,7 @@ export default function Home() {
               model={selectedModel} 
               chunkMapping={chunkMapping} 
               nearestFeatures={nearestFeatures}
+              features={features}
               onHover={handleFeatureHover}
               onSelect={handleFeatureSelect} 
             /> 
