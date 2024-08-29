@@ -50,15 +50,25 @@
   padding: 24px;
 }
 
+.fullHeightCard :global(.ant-card-head) {
+  z-index: 10;
+}
+
 /* Ensure the Card content takes full height */
 .fullHeightCard :global(.ant-card-body) {
   height: calc(100% - 57px);
 }
+
+
 .modelTitle {
   display: flex;
   flex-direction: row;
+  justify-content: space-between;
   gap: 8px;
+  z-index: 10;
 }
+
+
 .modelMetadata {
   display: flex;
   flex-direction: row;
@@ -71,4 +81,9 @@
 .scatters {
   /* So we can stack the scatter plots  */
   position: relative;
+}
+
+.extraInfo {
+  height: 64px;
+  padding: 12px;
 }

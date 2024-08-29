@@ -4,6 +4,7 @@ import { Typography, Card, Row, Col, Select } from 'antd';
 
 import { interpolateTurbo, interpolateCool } from 'd3-scale-chromatic';
 import { quadtree } from 'd3-quadtree'; // Import quadtree from d3
+import { format } from 'd3-format';
 
 import {Tooltip} from 'react-tooltip';
 
@@ -13,6 +14,7 @@ import FeatureDetails from '../components/FeatureDetails';
 import Scatter from '../components/Scatter';
 import StaticScatter from '../components/StaticScatter';
 
+
 const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
 
 const getWindow = () => (typeof window !== 'undefined' ? window : { location: { hash: '' } });
@@ -20,6 +22,7 @@ const getWindow = () => (typeof window !== 'undefined' ? window : { location: { 
 import styles from './index.module.css';
 
 const { Title } = Typography;
+const showInt = format(",d")
 
 // unfortunately regl-scatter doesn't even render in iOS
 const isIOS = () => {
@@ -32,7 +35,7 @@ const isMobileDevice = () => {
 
 const models = [
    { label: "NOMIC_FWEDU_25k", value: "NOMIC_FWEDU_25k" },
-   //{ label: "NOMIC_FWEDU_100k", value: "NOMIC_FWEDU_100k" },
+   { label: "NOMIC_FWEDU_100k (coming soon)", value: "NOMIC_FWEDU_100k", disabled: true },
 ]
 
 export default function Home() {
@@ -75,8 +78,8 @@ export default function Home() {
         const { offsetWidth, offsetHeight } = mainCardRef.current;
         // console.log("DIMENISONS", mainCardRef.current.clientHeight, mainCardRef.current.offsetHeight)
         setDimensions({
-          width: offsetWidth,
-          height: offsetHeight, // Subtracting the Card header height
+          width: offsetWidth - 2,
+          height: offsetHeight - 205, // Subtracting the various headers and pieces
         });
       }
     };
@@ -279,13 +282,17 @@ export default function Home() {
           <Col xs={24} lg={12} className={styles.fullHeightCol} >
             <Card title={
               <div className={styles.modelTitle}>
-                <Select options={models} value={models[0]} onChange={handleModelSelect} data-tooltip-id="modelTooltip" />
-                {modelMetadata && (
-                  <div className={styles.modelMetadata}>
-                    <span>{modelMetadata.num_latents} ({modelMetadata.expansion}x)</span>
-                    <span>{modelMetadata.source_model} ({modelMetadata.d_in})</span>
-                  </div>
-                )}
+                <div className={styles.modelMetadata}>
+                  <Select 
+                    style={{ width: '280px' }} 
+                    options={models} 
+                    value={models[0]} 
+                    onChange={handleModelSelect} 
+                    data-tooltip-id="modelTooltip" 
+                  />
+                  {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features</span>}
+                </div>
+                {modelMetadata && <span><a href="articles/about">more info</a></span>}
                 <Tooltip id="modelTooltip">
                   Select a model
                 </Tooltip>
@@ -293,8 +300,20 @@ export default function Home() {
               } 
             className={styles.fullHeightCard} 
             ref={mainCardRef}>
-              <div className="scatters" style={{ width: dimensions.width, height: dimensions.height }}>
-                {points.length ? <>
+              <div className={styles.extraInfo}>
+                    { modelMetadata && 
+                    <p>each dot is a feature of an <a href={modelMetadata.repo} target='_blank'>SAE</a> 
+                    &nbsp;
+                      trained on 100 billion tokens of <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu" target='_blank'>FineWeb-edu </a>
+                    <br></br>
+                      embedded via <a href={`https://huggingface.co/${modelMetadata.source_model}`} target='_blank'>
+                      {modelMetadata.source_model}
+                      </a>
+                    </p> }
+
+              </div>
+                <div className={styles.scatters} style={{ width: dimensions.width, height: dimensions.height }}>
+                  {points.length ? <>
                   { !isIOS() ? <Scatter
                     points={points}
                     duration={2000}
