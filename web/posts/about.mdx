@@ -13,6 +13,8 @@ date: '2024-08-26'
   - [Data preparation](#data-preparation)
   - [SAE training](#sae-training)
   - [Feature Analysis](#feature-analysis)
+  - [Interactive visualization](#interactive-visualization)
+- [Future work](#future-work)
 
 ---
 
@@ -190,7 +192,7 @@ I tried to do some experiments to understand just how many chunks I could fit in
 I wasn't able to reliably figure out the limits using TEI, 
 but using an A10G was most cost effective even though I could do more faster with an A100 or H100.
 
-It only cost about $50 to embed the 10BT sample in 4 hours, and $400 to embed the 100BT sample in 24 hours.
+It only cost about $50 to embed the 10BT sample in 3 hours, and $350 to embed the 100BT sample in 24 hours.
 <img 
   className="article-image"
   src="/images/embed-tei.png" 
@@ -205,18 +207,122 @@ I started using Modal because I could pay by the second, experimenting with GPUs
 Since then Modal has been supporting this open source work with credits which I am very grateful for.
 
 ## SAE training
-TODO
 
-https://github.com/EleutherAI/sae
+I made [latent-sae](https://github.com/enjalot/latent-sae) which is essentially a fork of [EleutherAI/sae](https://github.com/EleutherAI/sae) focused on training Sparse Autodencoders on Sentence transformer embeddings. 
+The main differences from the original are:  
+1) Focus on training only one model on one set of input
+2) Load training data (embeddings) quickly from disk
+3) Publish a pip module to use the trained SAEs easily from Latent Scope.
 
-https://github.com/enjalot/latent-sae
+It took me a while to understand the code, get wandb setup and see the FVU (basically reconstruction error) go down.
+I was surprised that I could actually train on my M2 Pro Mac, getting all the code executing properly even if it was a bit slow.
+Moving to Modal using a single A10G GPU sped things up a bit, I could train on the 25 million embeddings of the 10BT sample in under 10 minutes.
+Training for longer was just as easy, the full 100BT sample took under 2 hours.
+
+This is encouraging because it means that experiments with parameters is pretty cheap, those 2 hours only cost a few dollars on Modal.
+I was also surprised at just how much performance I got by switching from loading via HF datasets vs reading preprocessed .pt files of the embeddings.
+I was able to speed up training 20x by reading the embeddings directly from disk.
+
+### Parameters
+The main parameters I tried to change were:
+
+- batch-size: how many embeddings in a batch (bigger is better?) settled on 512 for performance tradeoff
+- grad-acc-steps: how many steps to skip updating gradient. simulates bigger batch size. not sure the penalty for making this really big. settled on 4 with batch size of 512
+- k: sparsity; how many top features to consider. fewer is sparser and more interpretable, but worse error. tried 64 and 128 but unsure how to measure quality differences yet
+- expansion factor: multiply times dimensions of input embedding (768 in case of nomic). chose 32 and 128 to give ~25k and ~100k features respectively.
+
+
+Running the training with various combinations of parameters looked like this:
+```bash
+modal run train_modal.py --batch-size 512 --grad-acc-steps 4 --k 64 --expansion-factor 128
+```
+
+<img 
+  className="article-image"
+  src="/images/wandb.png" 
+  alt="Wandb curves"
+   />
+
+I'm still not quite sure how to evaluate the quality of the training from these, so I'd love any feedback.
+I notice that the dead percent goes up and then back down with sufficient training data (the % of features that are dead, a common issue with SAEs).
+I also heard that having too high of a k will reduce the FVU but also reduce how interpretable the features are.
+Figuring out how to evaluate the interpretability (and utility) of the features is an open question for me, one I start to address in the feature analysis section.
 
 ## Feature Analysis
-TODO
+Inspired by [neuronpedia](https://www.neuronpedia.org/) I wanted an interactive interface for exploring the features of the trained SAEs.
+I also wanted it to serve as a reference for looking up features when the SAE is used in other contexts.
+For that usecase it's important that a feature can be [linked to directly](https://enjalot.github.io/latent-taxonomy/#model=NOMIC_FWEDU_25k&feature=7347).
 
-https://github.com/enjalot/latent-taxonomy
 
+In order to build the visualization and provide the samples for the features there are several steps of processing needed.
 
-## Future work
-TODO
+### Top samples
 
+1. Extract the top features for a set of samples
+I've been using the 10BT sample as my corpus for selecting top activating examples.
+The [features.py](https://github.com/enjalot/fineweb-modal/blob/main/features.py) script distributes the embeddings across 10 A10G GPUs
+to quickly extract the top features for each embedding.
+Each shard is processed in parallel, and is saved with two new columns `top_indices` and `top_acts` added.
+
+2. Find the top N samples per feature per shard
+The [top10map.py](https://github.com/enjalot/fineweb-modal/blob/main/top10map.py) 
+script goes through each feature in the SAE and finds the top N highest activating samples for that feature.
+This process is a bit memory intensive but can be done with just CPUs, distributed across VMs.
+To save on storage and memory, only the feature, activation and index into the shard are saved.
+
+3.  Find the top 10 samples per feature across all shards
+The [top10reduce.py](https://github.com/enjalot/fineweb-modal/blob/main/top10reduce.py) 
+script finds the top 10 samples per feature across all the shards from the previous step.
+Those samples are then retrieved from the original shards and a single file with the top10 samples per features is saved to disk.
+
+### Feature labels
+The automated labeling of features is done using `gpt-4o-mini` in the [make-labels.ipynb](https://github.com/enjalot/latent-taxonomy/blob/main/notebooks/make-labels.ipynb) notebook.
+The prompt template is inspired by [Disentangling Dense Embeddings](https://arxiv.org/html/2408.00657v1) 
+where we essentially give the LLM 10 highly activating samples per feature along with 10 non-activating samples and ask it to label the distinctive properties of the feature.
+
+I'd like to replace the closed model with something like LLama 3.1 in the future, which would probably mean another modal script!
+I already had some code ready and gpt-4o-mini was really cheap so I went with that for now.
+
+### Feature Similarity (UMAP)
+
+My first attempt at creating a layout for the features was to try and UMAP the decoder weights as seen in [umap-decoder.ipynb](https://github.com/enjalot/latent-taxonomy/blob/main/notebooks/umap-decoder.ipynb).
+I'm still not sure why the results didn't work, you can see that there is little structure in the UMAP, 
+and when I hooked it up in the interaction visualization it was apparent that similar features were not at all near to each other as one would expect.
+
+Instead I've gone with the approach of averaging the embeddings of the top 10 samples for each feature and running UMAP on those.
+You can see this in the [umap-top10.ipynb](https://github.com/enjalot/latent-taxonomy/blob/main/notebooks/umap-top10.ipynb) notebook.
+I also do a 1D UMAP to order the features by similarity, which is how their color is determined (So similar features should have a similar color).
+
+### Model metadata
+Putting it all together I wanted to have a single JSON file with metadata describing a single parquet representing the features.
+For the 25k model the parquet is only 1.8MB, and the JSON can be downloaded directly [at this url](https://enjalot.github.io/latent-taxonomy/models/NOMIC_FWEDU_25k/metadata.json).
+
+The [prepare-model.ipynb](https://github.com/enjalot/latent-taxonomy/blob/main/notebooks/prepare-model.ipynb) 
+notebook prepares the metadata and combines the labels, umaps and max activations into the parquet.
+The notebook also prepares the top10 samples into chunks of 100 features per parquet file. 
+This makes loading the 400MB of samples into the browser feasible, as only about 4MB needs to be loaded on-demand to get samples for a specific feature 
+(which is cached by the browser anytime another feature in that chunk is requested).
+
+### Interactive visualization
+
+The interactive visualization is built using [regl-scatterplot](https://github.com/flekschas/regl-scatterplot) in a React app using [Ant Design](https://ant.design/).
+The source code and components are available [latent-taxonomy/web](https://github.com/enjalot/latent-taxonomy/tree/main/web).
+
+# Future work
+
+I plan to train more models:
+- on different datasets (the stack, RedPajama v2)
+- with different parameters (batch size, expansion factor, k, chunk size)
+- pull improvements in training from the EleutherAI/sae repo
+
+I plan to add more types of analysis to the feature visualization:
+- UMAP comparisons between two SAEs with different parameters trained on the same dataset
+- better automated interpretability
+- statistical analysis of the features (log sparsity, etc)
+- understand why I wasn't able to find similar features using decoder weights
+
+I plan to integrate the SAE into Latent Scope, which I'm currently doing in the [latent-sae branch](https://github.com/enjalot/latent-scope/tree/latent-sae).
+
+If you are interested in discussing this project or have ideas for how to improve it, 
+I'd love to hear from you. 
+You can reach me on [Twitter](https://x.com/enjalot), [email](mailto:enjalot@gmail.com) or join the [Latent Interfaces Discord](https://discord.gg/x7NvpnM4pY).
