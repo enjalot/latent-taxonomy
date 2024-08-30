@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Typography, Row, Col } from 'antd';
-import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import { getMDXComponent } from 'mdx-bundler/client';
 import Layout from '../../components/Layout';
 import { getPostBySlug, getAllPostSlugs } from '../../lib/posts';
@@ -11,14 +9,6 @@ const { Title } = Typography;
 
 import styles from './article.module.css';
 
-// Custom Image component that uses the basePath
-const CustomImage = (props) => {
-  const router = useRouter();
-  const src = `${router.basePath}${props.src}`;
-  return <Image {...props} src={src} />;
-};
-
-// Custom MDX component
 // Crazy stuff to get the mdx importing stuff
 const MDXComponent = ({ code, components }) => {
   const [Component, setComponent] = React.useState(() => () => null);
@@ -38,8 +28,9 @@ const MDXComponent = ({ code, components }) => {
 };
 
 export default function BlogPost({ code, frontmatter }) {
+  const router = useRouter();
   const components = {
-    img: CustomImage,
+    Image: (props) => <img {...props} src={`${router.basePath}${props.src}`} />,
     h1: (props) => <h1 id={props.children.replace(/\s+/g, '-').toLowerCase().replace(/[?]/g, '')} {...props} />,
     h2: (props) => <h2 id={props.children.replace(/\s+/g, '-').toLowerCase().replace(/[?]/g, '')} {...props} />,
     h3: (props) => <h3 id={props.children.replace(/\s+/g, '-').toLowerCase().replace(/[?]/g, '')} {...props} />,

@@ -77,30 +77,33 @@ On the home page, you see a visualization on the left and a panel on the right.
 The visualization contains a dot for each "feature" of the select SAE model. 
 You can select features by clicking on a dot or searching in the search box:
 
-<img
+<Image
   className="article-image"
   src="/images/umap.png"
   alt="Visualization"
+  
 />
 
 When you select a feature, the panel on the right will show the 5 closest features on the map.
 You can click on these to see their details.
 You can hit the back button in your browser to go back to the previous feature, as selecting features updates the URL.
 
-<img
+<Image
   className="article-image"
   src="/images/similar.png"
   alt="Visualization"
+  
 />
 
 You will also see a list of the top 10 samples that activate the selected feature.
 These are taken from the 10BT sample of FineWeb-edu, meaning we ran all of the data thru the SAE
 and kept the top 10 samples that activated the feature the most.
 
-<img
+<Image
   className="article-image"
   src="/images/samples.png"
   alt="Visualization"
+  
 />
 
 You'll also see the other features that the sample activated. 
@@ -167,11 +170,11 @@ as I run this entire process on more datasets.
 
 Running this on the 10BT sample was pretty quick and didn't cost much. 
 I ended up paying around $350 for the 100BT sample, because with multithreading I used 1600 cores for 2 hours.
-<img 
+<Image 
   className="article-image"
   src="/images/chunker.png" 
   alt="Chunker cost"
-  style={{width:"50%"}}
+  width="50%"
    />
 
 
@@ -193,11 +196,11 @@ I wasn't able to reliably figure out the limits using TEI,
 but using an A10G was most cost effective even though I could do more faster with an A100 or H100.
 
 It only cost about $50 to embed the 10BT sample in 3 hours, and $350 to embed the 100BT sample in 24 hours.
-<img 
+<Image 
   className="article-image"
   src="/images/embed-tei.png" 
   alt="Embed TEI cost"
-  style={{width:"50%"}}
+  width="50%"
    />
 
 I include these costs becuase I was surprised how much I could do without the massive infrastructure of a big lab or company.
@@ -237,10 +240,11 @@ Running the training with various combinations of parameters looked like this:
 modal run train_modal.py --batch-size 512 --grad-acc-steps 4 --k 64 --expansion-factor 128
 ```
 
-<img 
+<Image 
   className="article-image"
   src="/images/wandb.png" 
   alt="Wandb curves"
+  
    />
 
 I'm still not quite sure how to evaluate the quality of the training from these, so I'd love any feedback.
