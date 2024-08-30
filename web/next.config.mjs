@@ -9,6 +9,9 @@ const nextConfig = {
   transpilePackages: ['antd', '@ant-design', 'rc-util', 'rc-pagination', 'rc-picker'],
   assetPrefix: process.env.NODE_ENV === 'production' ? '/latent-taxonomy/' : '',
   basePath: process.env.NODE_ENV === 'production' ? '/latent-taxonomy' : '',
+  images: {
+    unoptimized: true,
+  },
   webpack: (config) => {
     config.resolve.fallback = { 
       fs: false, 
