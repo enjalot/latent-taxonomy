@@ -7,6 +7,7 @@ const StaticScatter = ({
   points, 
   fill,
   stroke,
+  opacity = 0.75,
   size,
   symbol,
   xDomain, 
@@ -33,7 +34,7 @@ const StaticScatter = ({
       ctx.fillStyle = fill 
       ctx.strokeStyle = stroke
       ctx.font = `${rw}px monospace`
-      ctx.globalAlpha = 0.75
+      ctx.globalAlpha = opacity
       // ctx.globalAlpha = 1
       if(!points.length) return
       points.map(point => {
@@ -57,7 +58,7 @@ const StaticScatter = ({
     className={styles.statics}
     ref={container} 
     width={width} 
-    height={height} />;
+    height={height} />
 };
 
 export default StaticScatter;

@@ -30,6 +30,7 @@
   height: 14px;
   position: relative;
   margin: 1px;
+  overflow: hidden;
 }
 .sampleActivationBarForeground {
   height: 12px;
@@ -49,6 +50,7 @@
   justify-content: space-between;
   pointer-events: none;
   width: 100%;
+  overflow: hidden;
 }
 
 .sampleText {

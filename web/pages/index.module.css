@@ -14,10 +14,21 @@
 }
 
 .fullHeightRow {
-  flex: 1;
+  /* flex: 1; */
   display: flex;
   min-height: 0;
   height: 100%;
+}
+.mobileRow {
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.mobileRow .fullHeightCol {
+  height: auto;
+  overflow: hidden;
+  width: 100%;
+  height: 450px;
 }
 
 .fullHeightCol {
@@ -52,7 +63,7 @@
 }
 
 .fullHeightCard :global(.ant-card-head) {
-  z-index: 10;
+  /* z-index: 10; */
 }
 
 /* Ensure the Card content takes full height */
@@ -88,3 +99,4 @@
   height: 64px;
   padding: 12px;
 }
+

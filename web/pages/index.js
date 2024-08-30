@@ -24,21 +24,29 @@ import styles from './index.module.css';
 const { Title } = Typography;
 const showInt = format(",d")
 
-// unfortunately regl-scatter doesn't even render in iOS
-const isIOS = () => {
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-// let's warn mobile users (on demo in read-only) that desktop is better experience
-const isMobileDevice = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
 const models = [
    { label: "NOMIC_FWEDU_25k", value: "NOMIC_FWEDU_25k" },
    { label: "NOMIC_FWEDU_100k (coming soon)", value: "NOMIC_FWEDU_100k", disabled: true },
 ]
 
 export default function Home() {
+  // unfortunately regl-scatter doesn't even render in iOS, and has trouble on Android
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsIOS = () => {
+      return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+
+    const checkIsMobileDevice = () => {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    };
+
+    setIsIOSDevice(checkIsIOS());
+    setIsMobile(checkIsMobileDevice());
+  }, []);
+
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const mainCardRef = useRef(null);
 
@@ -79,7 +87,7 @@ export default function Home() {
         // console.log("DIMENISONS", mainCardRef.current.clientHeight, mainCardRef.current.offsetHeight)
         setDimensions({
           width: offsetWidth - 2,
-          height: offsetHeight - 148, // Subtracting the various headers and pieces
+          height: isMobile ? 300 : offsetHeight - 148, // Subtracting the various headers and pieces
         });
       }
     };
@@ -88,7 +96,7 @@ export default function Home() {
     window.addEventListener('resize', updateDimensions);
 
     return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
+  }, [isMobile]);
 
   const handleModelSelect = (model) => {
     setSelectedModel(model)
@@ -183,7 +191,7 @@ export default function Home() {
   // ====================================================================================================
   // this is a reference to the regl scatterplot instance
   // so we can do stuff like clear selections without re-rendering
-  const [scatter, setScatter] = useState({})
+  const [scatter, setScatter] = useState(null)
   const [xDomain, setXDomain] = useState([-1, 1]);
   const [yDomain, setYDomain] = useState([-1, 1]);
   const handleView = useCallback((xDomain, yDomain) => {
@@ -244,21 +252,11 @@ export default function Home() {
     console.log("FEATURE SELECTED", feature)
     setSelectedFeature(feature);
     if(feature) {
-      scatter.select([feature.feature])
-      // setSelectedIndices([feature.feature]) 
-      // router.push({
-      //   pathname: router.pathname,
-      //   query: { ...router.query, feature: feature.feature }
-      // });
+      scatter?.select([feature.feature])
       getWindow().location.hash = `model=${selectedModel.value}&feature=${feature.feature}`;
 
     } else {
-      scatter.select([])
-      // setSelectedIndices([])
-      // router.push({
-      //   pathname: router.pathname,
-      //   query: { ...router.query, feature: null }
-      // });
+      scatter?.select([])
       getWindow().location.hash = `model=${selectedModel.value}&feature=`;
     }
   }, [scatter, setSelectedIndices, selectedModel])
@@ -278,7 +276,8 @@ export default function Home() {
     <Layout>
       <div className={styles.homeContainer}>
         {/* <Title className={styles.pageTitle}>Latent Taxonomy</Title> */}
-        <Row className={styles.fullHeightRow} gutter={[24, 24]}>
+        {/* <Row className={styles.fullHeightRow} gutter={[24, 24]}> */}
+        <Row className={`${styles.fullHeightRow} ${isMobile ? styles.mobileRow : ''}`} gutter={[24, 24]}>
           <Col xs={24} lg={12} className={styles.fullHeightCol} >
             <Card title={
               <div className={styles.modelTitle}>
@@ -292,7 +291,7 @@ export default function Home() {
                   />
                   {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features</span>}
                 </div>
-                {modelMetadata && <span><a href="articles/about">more info</a></span>}
+                {modelMetadata && <span><a href="/articles/about">more info</a></span>}
                 <Tooltip id="modelTooltip">
                   Select a model
                 </Tooltip>
@@ -301,7 +300,7 @@ export default function Home() {
             className={styles.fullHeightCard} 
             ref={mainCardRef}>
               <div className={styles.extraInfo}>
-                    { modelMetadata && 
+                    { modelMetadata && !isMobile && 
                     <p>Each dot is a feature of an <a href={`https://huggingface.co/${modelMetadata.repo}`} target='_blank'>SAE</a> 
                       <span> trained on 100 billion tokens of <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu" target='_blank'>FineWeb-edu </a></span>
                     <br></br>
@@ -309,11 +308,15 @@ export default function Home() {
                       {modelMetadata.source_model}
                       </a>
                     </p> }
+                    {isMobile && <p>
+                      {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features<br></br></span>}
+                      <a href="/articles/about">more info</a>
+                    </p>}
 
               </div>
                 <div className={styles.scatters} style={{ width: dimensions.width, height: dimensions.height }}>
                   {points.length ? <>
-                  { !isIOS() ? <Scatter
+                  { !isMobile ? <Scatter
                     points={points}
                     duration={2000}
                     width={dimensions.width}
@@ -330,14 +333,15 @@ export default function Home() {
                   /> : <StaticScatter
                     points={points}
                     fill="gray"
-                    size="8"
+                    opacity={0.25}
+                    size="4"
                     xDomain={xDomain}
                     yDomain={yDomain}
                   width={dimensions.width}
                   height={dimensions.height}
                 /> }
 
-                {filteredIndices?.length && <StaticScatter
+                {filteredIndices?.length ? <StaticScatter
                   points={filteredIndices.map(i => points[i])}
                   stroke="black"
                   fill="gray"
@@ -346,9 +350,9 @@ export default function Home() {
                   yDomain={yDomain}
                   width={dimensions.width}
                   height={dimensions.height}
-                />}
+                /> : null}
 
-                {selectedIndices?.length && <StaticScatter
+                {selectedIndices?.length ? <StaticScatter
                   points={selectedIndices.map(i => points[i])}
                   stroke="black"
                   fill="black"
@@ -358,7 +362,7 @@ export default function Home() {
                   yDomain={yDomain}
                   width={dimensions.width}
                   height={dimensions.height}
-                />}
+                /> : null }
               </> : null }
             </div>
             
