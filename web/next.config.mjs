@@ -10,8 +10,14 @@ const nextConfig = {
   assetPrefix: process.env.NODE_ENV === 'production' ? '/latent-taxonomy/' : '',
   basePath: process.env.NODE_ENV === 'production' ? '/latent-taxonomy' : '',
   webpack: (config) => {
-    config.resolve.fallback = { fs: false, path: false };
+    config.resolve.fallback = { 
+      fs: false, 
+      path: false, 
+      stream: false, 
+      zlib: false 
+    };
     return config;
+
   },
   // babel: {
   //   presets: ['next/babel'],

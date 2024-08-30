@@ -79,7 +79,7 @@ export default function Home() {
         // console.log("DIMENISONS", mainCardRef.current.clientHeight, mainCardRef.current.offsetHeight)
         setDimensions({
           width: offsetWidth - 2,
-          height: offsetHeight - 205, // Subtracting the various headers and pieces
+          height: offsetHeight - 148, // Subtracting the various headers and pieces
         });
       }
     };
@@ -210,7 +210,7 @@ export default function Home() {
       // console.log("hovered", hoveredIndex, feature)
       if (feature && xDomain && yDomain) {
         const xPos = ((feature.top10_x - xDomain[0]) / (xDomain[1] - xDomain[0])) * dimensions.width;
-        const yPos = ((feature.top10_y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 57;
+        const yPos = ((feature.top10_y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 118;
         setTooltipPosition({ 
           x: xPos,// - .5*16, 
           y: yPos// - .67*16 
@@ -277,7 +277,7 @@ export default function Home() {
   return (
     <Layout>
       <div className={styles.homeContainer}>
-        <Title className={styles.pageTitle}>Latent Taxonomy</Title>
+        {/* <Title className={styles.pageTitle}>Latent Taxonomy</Title> */}
         <Row className={styles.fullHeightRow} gutter={[24, 24]}>
           <Col xs={24} lg={12} className={styles.fullHeightCol} >
             <Card title={
@@ -302,9 +302,8 @@ export default function Home() {
             ref={mainCardRef}>
               <div className={styles.extraInfo}>
                     { modelMetadata && 
-                    <p>each dot is a feature of an <a href={modelMetadata.repo} target='_blank'>SAE</a> 
-                    &nbsp;
-                      trained on 100 billion tokens of <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu" target='_blank'>FineWeb-edu </a>
+                    <p>Each dot is a feature of an <a href={`https://huggingface.co/${modelMetadata.repo}`} target='_blank'>SAE</a> 
+                      <span> trained on 100 billion tokens of <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu" target='_blank'>FineWeb-edu </a></span>
                     <br></br>
                       embedded via <a href={`https://huggingface.co/${modelMetadata.source_model}`} target='_blank'>
                       {modelMetadata.source_model}

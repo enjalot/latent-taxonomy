@@ -14,7 +14,7 @@ const MainLayout = ({ children }) => {
       case '/':
         return '1';
       case '/articles/[slug]':
-        return router.query?.slug == "about" ? '2' : '3';
+        return router.query?.slug == "about" ? '2' : '2';
       case '/articles':
         return '3';
       default:
@@ -23,9 +23,9 @@ const MainLayout = ({ children }) => {
   };
 
   const menuItems = [
-    { key: '1', label: <Link href="/">Home</Link> },
+    { key: '1', label: <Link href="/">Latent Taxonomy</Link> },
     { key: '2', label: <Link href="/articles/about">About</Link> },
-    { key: '3', label: <Link href="/articles">Articles</Link> },
+    // { key: '3', label: <Link href="/articles">Methodology</Link> },
   ];
 
   const [selectedKey, setSelectedKey] = useState(getInitialSelectedKey(router.pathname));

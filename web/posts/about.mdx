@@ -1,8 +1,220 @@
 ---
-title: About
 date: '2024-08-26'
 ---
 
-# About
+## Table of Contents
 
-Who, what when where and how
+- [What is this website?](#what-is-this-website)
+  - [Why embedding models?](#why-embedding-models)
+  - [Why sparse autoencoders?](#why-sparse-autoencoders)
+  - [How to use it](#how-to-use-it)
+- [Detailed methodology](#detailed-methodology)  
+  - [Datasets](#detailed-methodology)
+  - [Data preparation](#data-preparation)
+  - [SAE training](#sae-training)
+  - [Feature Analysis](#feature-analysis)
+
+# What is this website?
+
+This website is both a reference as well as a prototype for exploring Sparse Autoencoders for Embedding models. 
+Beyond the interactive visualization and lookup of features, 
+I want to share the process I used to prepare, train and analyze the SAE models presented.
+
+
+## Why embedding models?
+
+So far, I've focused on training these SAEs on the [nomic-ai/nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) model, 
+a fully open source and popular SOTA model for sentence embeddings.
+
+While much of the [SAE Research](https://docs.google.com/document/d/1lHvRXJsbi41bNGZ_znGN7DmlLXITXyWyISan7Qx2y6s/edit?tab=t.0#heading=h.j9b3g3x1o1z4)
+is focused on interpreting the inner workings of LLMs,
+the technique of finding interpretable directions in a high-dimensional space 
+has practical implications for organizing data with embedding models. 
+The [Prism](https://thesephist.com/posts/prism/) project and this [Disentangling Dense Embeddings](https://arxiv.org/html/2408.00657v1) 
+paper inspired me to try and train my own SAEs on embeddings.
+
+I've been working on [Latent Scope](https://github.com/enjalot/latent-scope) to leverage embeddings for visualizing and organizing data. 
+While mapping and clustering individual datasets can be insightful, 
+searching and filtering are limited to coarse similarity or using metadata for faceting.
+With a "good enough" SAE we should be able to facet by semantic concepts or even stylistic attributes of our data.
+What good enough means is a discussion that I hope to have with you, I offer some ideas in the methodology section.
+
+## Why sparse autoencoders?
+
+First, I'll try my hand at sharing my intuition on SAEs, then I'll link to some resources of various levels of technical depth.
+
+First lets talk about embeddings, AKA hidden states, AKA latent vectors, AKE neuron activations. 
+LLMs (and sentence transformers) take text in, pass it through layers of neurons and output some kind of prediction at the end.
+If we look at the hidden states of each layer we get a high-dimensional representation of the input text.
+Sentence transformers essentially take the last hidden state of the model and use that as the embedding for the input text.
+
+A cool thing about embeddings (especially sentence embeddings) is that similar text will have similar embeddings.
+This is used for many practical things like RAG, recommendations and similarity search. 
+In Latent Scope I use embeddings to [map, cluster and annotate unstructured datasets](https://enjalot.github.io/latent-scope/us-federal-laws).
+
+But what makes two embeddings or two pieces of text similar? 
+Are they talking about the same concepts? Are they using the same grammatical structure? 
+There could be many aspects that the two texts share to different degrees.
+In some sense, training an SAE is giving a neural network a fixed number of "aspects" 
+it can use and ask it to figure out the best ones for for reconstructing all kinds of text. 
+
+The default example on the home page of Latent Taxonomy has 25,000 features, and if you click around 
+you'll see that they represent all sorts of different concepts. As you click around you'll also notice
+that some of the labels may not describe the similarities in the examples that well. 
+We'll get into more detail in the methodology section, 
+for now it's interesting to note just how many concepts DO get captured as features in the SAE.
+
+To get a more technical understanding of SAEs I would read [Towards Monosemanticity](https://transformer-circuits.pub/2023/monosemantic-features)
+and this Andrew Ng [Youtube lecture](https://www.youtube.com/watch?v=vfnxKO2rMq4) may be helpful.
+
+## How to use it
+
+On the home page, you see a visualization on the left and a panel on the right. 
+The visualization contains a dot for each "feature" of the select SAE model. 
+You can select features by clicking on a dot or searching in the search box:
+
+<img
+  className="article-image"
+  src="/images/umap.png"
+  alt="Visualization"
+/>
+
+When you select a feature, the panel on the right will show the 5 closest features on the map.
+You can click on these to see their details.
+You can hit the back button in your browser to go back to the previous feature, as selecting features updates the URL.
+
+<img
+  className="article-image"
+  src="/images/similar.png"
+  alt="Visualization"
+/>
+
+You will also see a list of the top 10 samples that activate the selected feature.
+These are taken from the 10BT sample of FineWeb-edu, meaning we ran all of the data thru the SAE
+and kept the top 10 samples that activated the feature the most.
+
+<img
+  className="article-image"
+  src="/images/samples.png"
+  alt="Visualization"
+/>
+
+You'll also see the other features that the sample activated. 
+They are sorted by how much they activated compared to the max activation for the feature.
+So some features in the list may have low absolute activation but strongly activate for that feature.
+
+
+
+# Detailed Methodology
+This project has been a big learning experience for me, 
+it's the first time I've trained a model from scratch and there's a bunch of things I could be more clear on.
+I've open sourced every part of the process and will do my best to document both my challenges and my successes.
+
+I feel like there are three main aspects to the process of getting to a "good" SAE: data preparation, training and feature analysis.
+I'll link to the repos and notebooks I used for each part of the process, 
+and while I could have done more in each phase, it has been useful to get to a usable model.
+
+
+## Data preparation
+All of the data preparation work was done as scripts run on [Modal Labs](https://modal.com) 
+and are available in my [fineweb-modal repo](https://github.com/enjalot/fineweb-modal).
+
+The data preparation process was a good flex for me, with Latent Scope I've been focusing on local datasets, 
+things that you can download and process on a single machine. 
+It seems from the research that in order to train a decent SAE you'll want a bit more data. 
+I decided to start with the 10BT sample of FineWeb-edu, which contains about 10 million documents. 
+When chunked into 500 token chunks (to fit the context length of most sentence transformers) its about 25 million chunks.
+
+Since the input data to an SAE is the embedding of a chunk of text, 
+this would give me 25 million samples to train on. 
+I uploaded the chunked and embedded data to [this huggingface dataset](https://huggingface.co/datasets/enjalot/fineweb-edu-sample-10BT-chunked-500-nomic-text-v1.5).
+
+As we'll see in the training section, the 10BT sample wasn't quite enough so I ran the same process on the 100BT sample.
+I intend to upload that data soon.
+
+I split the process into a number of steps, each one outputting flat files and usually parallelizing across a VM per file.
+
+### Step 0: Choosing the dataset
+The reason I chose the FineWeb-edu dataset is that I'm fascinated by the idea of quality data.
+If training the SAE were to work, presumably it works best on high-quality text. 
+I'm interested in applying the SAE to organizing scientific articles and other complex domains, 
+so this seemed like a great place to get a lot of higher-quality text.
+
+I used the datasets library to download the dataset to a Modal Labs volume [download.py](https://github.com/enjalot/fineweb-modal/blob/main/download.py)
+
+### Step 1: Chunking
+I realized when I was playing with this [excellent tutorial on embedding wikipedia](https://modal.com/blog/embedding-wikipedia)
+that tokenizing is kind of slow.
+The tutorial shows you how fast you can embed a lot of text, but it uses simple string splitting to make chunks.
+I wanted to be able to chunk the larger documents into smaller pieces and be sure they were under the context limit.
+I even chose 500 instead of the usual 512 because I wanted to leave room for a prefix like "clustering: " 
+which helps the Nomic model I planned to use.
+
+Tokenizing is a kind of CPU heavy task, especially if you're encoding, splitting, counting and decoding millions of times.
+To speed things up I distributed each of the 99 shards to its own VM (which is super intuitive with Modal's map API).
+Scaling it up to 100BT just meant running map over 989 files instead.
+
+You can see the code in [chunker.py](https://github.com/enjalot/fineweb-modal/blob/main/chunker.py)
+
+I'll point out that I don't use any command line arguments in these files, using global variables at the top.
+I found it easier to keep track of what I had written and where I was reading from as I iterated on the process.
+There are probably a lot of ways to make these scripts easier to adapt, and I plan to do improve them
+as I run this entire process on more datasets.
+
+Running this on the 10BT sample was pretty quick and didn't cost much. 
+I ended up paying around $350 for the 100BT sample, because with multithreading I used 1600 cores for 2 hours.
+<img 
+  className="article-image"
+  src="/images/chunker.png" 
+  alt="Chunker cost"
+  style={{width:"50%"}}
+   />
+
+
+
+### Step 2: Embedding
+I chose the [nomic-ai/nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) model to train my first SAE
+since it's popular, completely open source and has a good balance of speed and quality.
+It's supported by the HuggingFace [TEI library](https://huggingface.co/docs/text-embeddings-inference/en/index) 
+which means super fast inference that's easy to deploy on Modal Labs.
+
+Because the chunks are already premade, I was able to do optimize batching 
+by sorting the chunks by token length ascending. 
+This means the batches are more full and waste lest time on padding.
+
+The code for embedding is in [embed-tei.py](https://github.com/enjalot/fineweb-modal/blob/main/embed-tei.py)
+
+I tried to do some experiments to understand just how many chunks I could fit in a batch, and what would be fastest.
+I wasn't able to reliably figure out the limits using TEI, 
+but using an A10G was most cost effective even though I could do more faster with an A100 or H100.
+
+It only cost about $50 to embed the 10BT sample in 4 hours, and $400 to embed the 100BT sample in 24 hours.
+<img 
+  className="article-image"
+  src="/images/embed-tei.png" 
+  alt="Embed TEI cost"
+  style={{width:"50%"}}
+   />
+
+I include these costs becuase I was surprised how much I could do without the massive infrastructure of a big lab or company.
+I've worked at Google and Stability.ai and was a bit worried I'd be shut out from working with "serious"
+ datasets on my own. 
+I started using Modal because I could pay by the second, experimenting with GPUs without worrying about managing machines.
+Since then Modal has been supporting this open source work with credits which I am very grateful for.
+
+## SAE training
+TODO
+
+https://github.com/EleutherAI/sae
+
+https://github.com/enjalot/latent-sae
+
+## Feature Analysis
+TODO
+
+https://github.com/enjalot/latent-taxonomy
+
+
+## Future work
+TODO
+

@@ -2,7 +2,7 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  height: calc(100% - 70px);
+  height: calc(100% - 25px);
   overflow-y: auto;
 }
 
