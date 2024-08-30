@@ -22,7 +22,11 @@ a {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   margin: 20px 0;
 }
-
+article h1 {
+  font-size: 24px;
+  margin-top: 20px;
+}
 article p {
   padding: 6px;
+  font-size: 16px;
 }
