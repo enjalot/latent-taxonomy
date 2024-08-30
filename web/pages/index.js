@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router'; // Import useRouter from next/router
+import Link from 'next/link';
 import { Typography, Card, Row, Col, Select } from 'antd';
 
 import { interpolateTurbo, interpolateCool } from 'd3-scale-chromatic';
@@ -291,7 +292,7 @@ export default function Home() {
                   />
                   {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features</span>}
                 </div>
-                {modelMetadata && <span><a href="/articles/about">more info</a></span>}
+                {modelMetadata && <span><Link href="/articles/about">more info</Link></span>}
                 <Tooltip id="modelTooltip">
                   Select a model
                 </Tooltip>
@@ -310,7 +311,7 @@ export default function Home() {
                     </p> }
                     {isMobile && <p>
                       {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features<br></br></span>}
-                      <a href="/articles/about">more info</a>
+                      <Link href="/articles/about">more info</Link>
                     </p>}
 
               </div>

@@ -3,6 +3,7 @@ import '../styles/globals.css';
 import { useMemo } from 'react'; 
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter(); // Use useRouter from next/router
@@ -11,24 +12,11 @@ function MyApp({ Component, pageProps }) {
   return (<>
     <Head>
       <link rel="icon" href={`${basePath}/favicon.ico`} />
-      {process.env.NODE_ENV === 'production' && (
-            <>
-              <script async src="https://www.googletagmanager.com/gtag/js?id=G-42X5GRN7RD"></script>
-              <script
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag('js', new Date());
-
-                    gtag('config', 'G-42X5GRN7RD');
-                  `,
-                }}
-              />
-            </>
-          )}
     </Head>
     <Component {...pageProps} />
+    {process.env.NODE_ENV === 'production' && (
+      <GoogleAnalytics gaId="G-42X5GRN7RD" />
+    )}
   </>)
 }
 
