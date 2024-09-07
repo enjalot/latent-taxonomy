@@ -49,7 +49,7 @@
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
-  width: 100%;
+  width: 99%;
   overflow: hidden;
 }
 

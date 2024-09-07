@@ -61,7 +61,7 @@ const FeatureDetails = ({
   useEffect(() => {
     if(!model || !feature) return;
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet`)
+      const buffer = await asyncBufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
       const data = await parquetRead({
         file: buffer,
         rowFormat: 'object',
@@ -139,7 +139,8 @@ const FeatureDetails = ({
                       activation: act,
                       percent: act/f.max_activation
                     }
-                  }).sort((a,b) => b.percent - a.percent)
+                  })
+                  //.sort((a,b) => b.percent - a.percent)
                   .slice(0, 10)
                   .map(f => (
                     <ActivationBar

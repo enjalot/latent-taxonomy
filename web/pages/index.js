@@ -106,7 +106,7 @@ export default function Home() {
   const [points, setPoints] = useState([])
   useEffect(() => {
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet`)
+      const buffer = await asyncBufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet?cachebust=1`)
       const data = await parquetRead({
         file: buffer,
         onComplete: data => {
@@ -179,9 +179,9 @@ export default function Home() {
   const [chunkMapping, setChunkMapping] = useState(null)
   useEffect(() => {
     const asyncRead = async () => {
-      const meta = await fetch(`${basePath}/models/${selectedModel.label}/metadata.json`).then(r => r.json())
+      const meta = await fetch(`${basePath}/models/${selectedModel.label}/metadata.json?cachebust=1`).then(r => r.json())
       setModelMetadata(meta)
-      const chunkMapping = await fetch(`${basePath}/models/${selectedModel.label}/chunk_mapping.json`).then(r => r.json())
+      const chunkMapping = await fetch(`${basePath}/models/${selectedModel.label}/chunk_mapping.json?cachebust=1`).then(r => r.json())
       setChunkMapping(chunkMapping)
     }
     asyncRead()
