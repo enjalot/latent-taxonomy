@@ -13,7 +13,7 @@ const MainLayout = ({ children }) => {
   const menuItems = [
     { key: '/', label: <Link href="/">Latent Interfaces</Link> },
     { key: '/articles/about', label: <Link href="/articles/about">About</Link> },
-    // { key: '3', label: <Link href="/articles">Methodology</Link> },
+    { key: '/articles/sae-intuition', label: <Link href="/articles/sae-intuition">Intro to SAE</Link> },
   ];
   
   const [selectedKey, setSelectedKey] = useState(router.asPath);
