@@ -9,30 +9,18 @@ const { Header, Content, Footer } = AntLayout;
 
 const MainLayout = ({ children }) => {
   const router = useRouter();
-  const getInitialSelectedKey = (pathname) => {
-    switch (pathname) {
-      case '/':
-        return '1';
-      case '/articles/[slug]':
-        return router.query?.slug == "about" ? '2' : '2';
-      case '/articles':
-        return '3';
-      default:
-        return '1';
-    }
-  };
 
   const menuItems = [
-    { key: '1', label: <Link href="/">Latent Taxonomy</Link> },
-    { key: '2', label: <Link href="/articles/about">About</Link> },
+    { key: '/', label: <Link href="/">Latent Interfaces</Link> },
+    { key: '/articles/about', label: <Link href="/articles/about">About</Link> },
     // { key: '3', label: <Link href="/articles">Methodology</Link> },
   ];
-
-  const [selectedKey, setSelectedKey] = useState(getInitialSelectedKey(router.pathname));
+  
+  const [selectedKey, setSelectedKey] = useState(router.asPath);
 
   useEffect(() => {
-    setSelectedKey(getInitialSelectedKey(router.pathname));
-  }, [router.pathname]);
+    setSelectedKey(router.asPath);
+  }, [router.asPath]);
 
   return (
     <AntLayout className={styles.layout}>
