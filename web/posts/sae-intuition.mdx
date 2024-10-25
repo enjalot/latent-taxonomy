@@ -5,8 +5,102 @@ authors: [Jimmy Zhang, Ian Johnson]
 
 # A programmer's guide to Sparse Autoencoders
 
-The content
+Motivation
+We can use SAEs to pull out what an LLM knows, then we can use that knowledge to guide its behavior.
 
+This article will give you the conceptual intuition and provide a hands on way to work with them yourself.
+We will use Gemma 2 2B to demonstrate, a model that can run efficiently enough on a CPU to experiment with. 
+We'll show you the code for each step.
+
+Let's get SAE in your toolbox.
+New SAEs are being researched and trained, they will get better and more interpretable, and available for more open models.
+
+
+
+What does an LLM know?
+[GIF OF USING LLM]
+What could we do if we could get a handle on what it knows? We could more directly control what it outputs (or doesn't output).
+
+As a programmer it's a super power to know what's happening one level of abstraction below the API you are working with.
+
+[[CODE FOR INFERENCE (simple using python transformers)]]
+```python
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b")
+model = AutoModelForCausalLM.from_pretrained("google/gemma-2-2b")
+
+input_text = "Hello, my name is"
+inputs = tokenizer(input_text, return_tensors="pt", add_special_tokens=True)
+outputs = model.generate(**inputs, max_new_tokens=10)
+```
+
+What's happening below the API?
+
+To understand what's happening, we need to get familiar with the idea of embeddings.
+
+What are we talking about when we talk about embeddings?
+[TRANSFORMER DIAGRAM]
+
+[[CODE FOR looking at model diagram]]
+```python
+print(model)
+```
+```
+Gemma2ForCausalLM(
+  (model): Gemma2Model(
+    (embed_tokens): Embedding(256000, 2304, padding_idx=0)
+    (layers): ModuleList(
+      (0-25): 26 x Gemma2DecoderLayer(
+        ...
+)
+```
+
+embeddings get updated by each layer. We need to talk about tokens and how an embedding gets started.
+
+breakdown how our input turns into tokens
+
+get back hidden states
+[[hidden states are same shape as the layers (there are 26 hidden states, one for each layer)]]
+
+we want to take a closer look at the embeddings for a particular layer. 
+one way to think about it is that the model has embedded some patterns into each token's embedding when it gets to that layer.
+these patterns are based on the previous layers and the other tokens as well (cross-attention).
+
+river bank vs well's fargo bank
+"bank" is the same token but has different meanings depending on context.
+"river bank has [sand]" vs "wells fargo bank has [money]"
+
+What is embedded in the "has" token? Can we see what other information is in there?
+
+# Enter the SAE
+
+Instead of getting back all of the hidden states, we can use a forward hook to get the embeddings for a specific layer.
+This idea of reaching into the model at a particular layer and looking at it's activations will come back when its time to change the model's behavior.
+
+[[CODE for forward hook]]
+
+So what does an SAE do?
+[SAE DIAGRAM] 
+It's trained on lots of embeddings that are extracted by running data through the model.
+
+Researchers are training SAEs on different models and layers, we'll use the SAE trained on the embeddings of the Gemma 2 2B model.
+
+[[CODE FOR getting SAE features]]
+
+Let's look at some features
+example 1
+example 2
+example 3
+
+How can we use features?
+
+We can detect concepts in new text.
+If you have a feature you're interested in, like the bug detector feature, you could check code in PRs for bugs by seeing if the feature activates.
+Sentiment analysis? check for anger?
+
+[Can we embed neuronpedia interactive box? (we could at least link to it directly)] 
+
+We can steer the behavior of the model.
+This is the fun part, make the model act a certain way.
 
 
 ### Citations
