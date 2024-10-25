@@ -16,7 +16,7 @@ import Scatter from '../components/Scatter';
 import StaticScatter from '../components/StaticScatter';
 
 
-const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
+// const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
 
 const getWindow = () => (typeof window !== 'undefined' ? window : { location: { hash: '' } });
 
@@ -31,6 +31,16 @@ const models = [
 ]
 
 export default function Home() {
+  // load hyparquet without using top level await
+  const [hyparquet, setHyparquet] = useState(null);
+  useEffect(() => {
+    const loadHyparquet = async () => {
+      const { asyncBufferFromUrl, parquetRead } = await import('hyparquet');
+      setHyparquet({ asyncBufferFromUrl, parquetRead });
+    };
+    loadHyparquet();
+  }, []);
+
   // unfortunately regl-scatter doesn't even render in iOS, and has trouble on Android
   const [isIOSDevice, setIsIOSDevice] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -105,9 +115,11 @@ export default function Home() {
 
   const [points, setPoints] = useState([])
   useEffect(() => {
+    if (!hyparquet) return;
+
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet?cachebust=1`)
-      const data = await parquetRead({
+      const buffer = await hyparquet.asyncBufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet?cachebust=1`)
+      const data = await hyparquet.parquetRead({
         file: buffer,
         onComplete: data => {
           // let pts = []
@@ -134,7 +146,7 @@ export default function Home() {
       })
     }
     asyncRead()
-  }, [selectedModel, basePath])
+  }, [selectedModel, basePath, hyparquet])
 
   const [quadtreeInstance, setQuadtreeInstance] = useState(null);
 

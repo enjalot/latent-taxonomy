@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo} from 'react';
 import { Typography, Descriptions } from 'antd';
 import { interpolateTurbo } from 'd3-scale-chromatic';
 import { rgb } from 'd3-color';
-const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
 import { useRouter } from 'next/router'; // Import useRouter from next/router
 
 import styles from './FeatureDetails.module.css';
@@ -58,11 +57,22 @@ const FeatureDetails = ({
   const [samples, setSamples] = useState([])
   const router = useRouter(); // Use useRouter from next/router
   const basePath = useMemo(() => router.basePath, [router])
+
+  const [hyparquet, setHyparquet] = useState(null);
   useEffect(() => {
-    if(!model || !feature) return;
+    const loadHyparquet = async () => {
+      const { asyncBufferFromUrl, parquetRead } = await import('hyparquet');
+      setHyparquet({ asyncBufferFromUrl, parquetRead });
+    };
+    loadHyparquet();
+  }, []);
+
+
+  useEffect(() => {
+    if(!model || !feature || !hyparquet) return;
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
-      const data = await parquetRead({
+      const buffer = await hyparquet.asyncBufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
+      const data = await hyparquet.parquetRead({
         file: buffer,
         rowFormat: 'object',
         onComplete: data => {
@@ -80,7 +90,7 @@ const FeatureDetails = ({
       })
     }
     asyncRead()
-  }, [feature, chunkMapping, model, basePath])
+  }, [feature, chunkMapping, model, basePath, hyparquet])
 
   useEffect(() => {
     console.log("samples", samples.length)
