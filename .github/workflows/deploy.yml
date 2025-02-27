@@ -55,14 +55,12 @@ jobs:
       - name: Build with Next.js
         run: npm run build
 
-      - name: List artifact contents
-        run: find out -type l -ls || true
-      - name: Hard links
-        run: find out -type f -links +1
-      - name: Weird files
-        run: find out -not \( -type f -o -type d \) -print
-      - name: Check artifact size
-        run: du -sh out
+      - name: Read permissions
+        run: chmod -R a+rX out
+
+      - name: Read permissions 2
+        run: chmod -R a+rX web/out
+
 
       # Upload the static output generated in the 'out' directory
       - name: Upload artifact
