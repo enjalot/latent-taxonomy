@@ -1,4 +1,7 @@
 name: Deploy Next.js site to Pages
+env:
+  ACTIONS_RUNNER_DEBUG: true
+  ACTIONS_STEP_DEBUG: true
 
 on:
   push:
@@ -21,25 +24,27 @@ jobs:
       run:
         working-directory: ./web
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v3
         with:
           node-version: "20"
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
-      - name: Configure Pages
+      - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           static_site_generator: next
 
-      - name: Restore Next.js cache
+      # Cache the Next.js build output to speed up future builds
+      - name: Restore cache
         uses: actions/cache@v3
         with:
           path: .next/cache
+          # Generate a new cache whenever packages or source files change
           key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
@@ -47,28 +52,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Next.js app
+      - name: Build with Next.js
         run: npm run build
-        working-directory: ./web
 
-      - name: Upload build artifact
+      - name: List artifact contents
+        run: find out -type l -ls || true
+      - name: Hard links
+        run: find out -type f -links +1
+      - name: Werid files
+        run: find out -not \( -type f -o -type d \) -print
+      - name: Check artifact size
+        run: du -sh out
+
+      # Upload the static output generated in the 'out' directory
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: github-pages
-          path: web/out
-
-      - name: List artifact symlinks (if any)
-        run: find web/out -type l -ls || true
-
-      - name: Check artifact size
-        run: du -sh web/out
+          name: 'github-pages'
+          path: out
 
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    runs-on: ubuntu-latest
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
