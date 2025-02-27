@@ -43,7 +43,7 @@ jobs:
       - name: Restore cache
         uses: actions/cache@v3
         with:
-          path: .next/cache
+          path: web/.next/cache
           # Generate a new cache whenever packages or source files change
           key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
           restore-keys: |
@@ -59,7 +59,7 @@ jobs:
         run: find out -type l -ls || true
       - name: Hard links
         run: find out -type f -links +1
-      - name: Werid files
+      - name: Weird files
         run: find out -not \( -type f -o -type d \) -print
       - name: Check artifact size
         run: du -sh out
@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 'github-pages'
-          path: out
+          path: web/out
 
   deploy:
     environment:
