@@ -123,11 +123,14 @@ export default function Home() {
               top10_y: f[5],
               label: f[6],
               order: f[7],
+              grid_x: f[8],
+              grid_y: f[9],
             }
           })
           // .filter(d => d.label.indexOf("linear") >= 0)
           // .sort((a,b) => a.order - b.order)
-          let pts = fts.map(f => [f.top10_x, f.top10_y, f.order])
+          // let pts = fts.map(f => [f.top10_x, f.top10_y, f.order])
+          let pts = fts.map(f => [f.grid_x, f.grid_y, f.order])
           setFeatures(fts)
           setPoints(pts)
         }
@@ -141,8 +144,8 @@ export default function Home() {
   useEffect(() => {
     if (features.length) {
       const qt = quadtree()
-        .x(d => d.top10_x)
-        .y(d => d.top10_y)
+        .x(d => d.grid_x)
+        .y(d => d.grid_y)
         .addAll(features);
       setQuadtreeInstance(qt);
     }
@@ -156,13 +159,13 @@ export default function Home() {
       if (!node.length) {
         do {
           const d = node.data;
-          const dx = d.top10_x - feature.top10_x;
-          const dy = d.top10_y - feature.top10_y;
+          const dx = d.grid_x - feature.grid_x;
+          const dy = d.grid_y - feature.grid_y;
           const distance = Math.sqrt(dx * dx + dy * dy); // Calculate distance without modifying node
           nearest.push({ ...d, distance });
         } while (node = node.next);
       }
-      return x0 > feature.top10_x + searchRadius || x1 < feature.top10_x - searchRadius || y0 > feature.top10_y + searchRadius || y1 < feature.top10_y - searchRadius;
+      return x0 > feature.grid_x + searchRadius || x1 < feature.grid_x - searchRadius || y0 > feature.grid_y + searchRadius || y1 < feature.grid_y - searchRadius;
     });
     return nearest.sort((a, b) => a.distance - b.distance).slice(0, count);
   }, [quadtreeInstance, features])
@@ -218,8 +221,8 @@ export default function Home() {
       const feature = features[hoveredIndex];
       // console.log("hovered", hoveredIndex, feature)
       if (feature && xDomain && yDomain) {
-        const xPos = ((feature.top10_x - xDomain[0]) / (xDomain[1] - xDomain[0])) * dimensions.width;
-        const yPos = ((feature.top10_y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 118;
+        const xPos = ((feature.grid_x - xDomain[0]) / (xDomain[1] - xDomain[0])) * dimensions.width;
+        const yPos = ((feature.grid_y - yDomain[1]) / (yDomain[0] - yDomain[1])) * (dimensions.height) + 118;
         setTooltipPosition({ 
           x: xPos,// - .5*16, 
           y: yPos// - .67*16 
