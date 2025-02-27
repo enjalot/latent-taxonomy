@@ -58,10 +58,6 @@ jobs:
       - name: Read permissions
         run: chmod -R a+rX out
 
-      - name: Read permissions 2
-        run: chmod -R a+rX web/out
-
-
       # Upload the static output generated in the 'out' directory
       - name: Upload artifact
         uses: actions/upload-artifact@v4
