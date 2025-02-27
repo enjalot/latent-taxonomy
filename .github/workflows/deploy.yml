@@ -1,5 +1,9 @@
 name: Deploy Next.js site to Pages
 
+env:
+  ACTIONS_RUNNER_DEBUG: true
+  ACTIONS_STEP_DEBUG: true
+
 on:
   push:
     branches: ["main"]
@@ -53,6 +57,10 @@ jobs:
         with:
           name: 'github-pages'
           path: web/out
+      - name: List artifact contents
+        run: find web/out -type l -ls || true
+      - name: Check artifact size
+        run: du -sh web/out
 
   deploy:
     environment:
