@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'; // Import useRouter from next/router
 import Link from 'next/link';
 import { Typography, Card, Row, Col, Select } from 'antd';
 
-import { interpolateTurbo, interpolateCool } from 'd3-scale-chromatic';
+import { interpolateTurbo, interpolateRainbow, interpolateSinebow } from 'd3-scale-chromatic';
 import { quadtree } from 'd3-quadtree'; // Import quadtree from d3
 import { format } from 'd3-format';
 
@@ -327,8 +327,11 @@ export default function Home() {
                     height={dimensions.height}
                     colorScaleType="continuous"
                     // colorScaleType="categorical"
-                    colorInterpolator={interpolateTurbo}
-                    pointScale={1}
+                    // colorInterpolator={interpolateTurbo}
+                    // colorInterpolator={interpolateRainbow}
+                    colorInterpolator={interpolateSinebow}
+                    pointScale={2}
+                    opacity={0.9}
                     pointColor={"#444"}
                     onScatter={setScatter}
                     onView={handleView}

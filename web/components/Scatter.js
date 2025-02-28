@@ -17,6 +17,7 @@ ScatterPlot.propTypes = {
   pointScale: PropTypes.number,
   colorScaleType: PropTypes.oneOf(["categorical", "continuous"]),
   colorInterpolator: PropTypes.func,
+  opacity: PropTypes.number,
   opacityBy: PropTypes.string,
   lasso: PropTypes.bool,
   duration: PropTypes.number,
@@ -59,6 +60,7 @@ function ScatterPlot ({
   pointColor = [250/255, 128/255, 114/255, 1],
   colorScaleType = null,
   colorInterpolator = interpolateCool,
+  opacity = 0,
   opacityBy,
   lasso = false,
   onScatter,
@@ -87,7 +89,9 @@ function ScatterPlot ({
       pointColorHover: [0.1, 0.1, 0.1, 0.5],
       xScale,
       yScale,
-      lasso
+      lasso,
+      // performanceMode: true,
+      // renderPointsAsSquares: true
     }
     // console.log("creating scatterplot", xDomain.current)
     const scatterplot = createScatterplot(scatterSettings);
@@ -137,7 +141,9 @@ function ScatterPlot ({
     if(scatterplot && points && points.length){
     
       const pointSize = calculatePointSize(points.length) * pointScale;
-      const opacity = calculatePointOpacity(points.length);
+      if(!opacity) {
+        opacity = calculatePointOpacity(points.length);
+      }
       // console.log("point size", pointSize, opacity)
 
       // let drawPoints = points
