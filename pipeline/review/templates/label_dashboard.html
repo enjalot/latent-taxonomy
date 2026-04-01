@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Label Dashboard — SAE Pipeline{% endblock %}
+
+{% block content %}
+<h1>Label Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value">{{ stats.provider }}</div>
+        <div class="label">Provider</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.model }}</div>
+        <div class="label">Model</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.total }}</div>
+        <div class="label">Total Labeled</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.failed }}</div>
+        <div class="label">Failed</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.success_rate }}</div>
+        <div class="label">Success Rate</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.estimated_cost }}</div>
+        <div class="label">Estimated Cost</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div class="chart-container">
+        <h2>Time per Feature (ms)</h2>
+        <canvas id="timeChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h2>Token Usage</h2>
+        <canvas id="tokenChart"></canvas>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h2>Token Summary</h2>
+    <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Total Input Tokens</td><td>{{ "{:,}".format(stats.total_input_tokens) }}</td></tr>
+        <tr><td>Total Output Tokens</td><td>{{ "{:,}".format(stats.total_output_tokens) }}</td></tr>
+        <tr><td>Mean Time per Feature</td><td>{{ stats.mean_time_ms }}ms</td></tr>
+        <tr><td>Median Time per Feature</td><td>{{ stats.median_time_ms }}ms</td></tr>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const timeData = {{ time_data | tojson }};
+const tokenData = {{ token_data | tojson }};
+
+// Time histogram
+const timeCtx = document.getElementById('timeChart').getContext('2d');
+new Chart(timeCtx, {
+    type: 'bar',
+    data: {
+        labels: timeData.labels,
+        datasets: [{
+            label: 'Features',
+            data: timeData.counts,
+            backgroundColor: 'rgba(52, 152, 219, 0.7)',
+            borderColor: 'rgba(52, 152, 219, 1)',
+            borderWidth: 1,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { title: { display: true, text: 'Time (ms)' } },
+            y: { title: { display: true, text: 'Count' }, beginAtZero: true },
+        }
+    }
+});
+
+// Token usage histogram
+const tokenCtx = document.getElementById('tokenChart').getContext('2d');
+new Chart(tokenCtx, {
+    type: 'bar',
+    data: {
+        labels: tokenData.labels,
+        datasets: [
+            {
+                label: 'Input Tokens',
+                data: tokenData.input_counts,
+                backgroundColor: 'rgba(46, 204, 113, 0.7)',
+                borderColor: 'rgba(46, 204, 113, 1)',
+                borderWidth: 1,
+            },
+            {
+                label: 'Output Tokens',
+                data: tokenData.output_counts,
+                backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                borderColor: 'rgba(231, 76, 60, 1)',
+                borderWidth: 1,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            x: { title: { display: true, text: 'Tokens' } },
+            y: { title: { display: true, text: 'Count' }, beginAtZero: true },
+        }
+    }
+});
+</script>
+{% endblock %}

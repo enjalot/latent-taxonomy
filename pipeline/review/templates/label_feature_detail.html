@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Feature {{ feature_id }} — SAE Pipeline{% endblock %}
+
+{% block content %}
+<h1>Feature {{ feature_id }}</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value {% if label_info.label == '[FAILED]' %}failed{% else %}success{% endif %}">
+            {{ label_info.label }}
+        </div>
+        <div class="label">Label</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ "%.0f" | format(label_info.time_ms) }}ms</div>
+        <div class="label">Generation Time</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ label_info.input_tokens }}</div>
+        <div class="label">Input Tokens</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ label_info.output_tokens }}</div>
+        <div class="label">Output Tokens</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Top Discriminative Tokens</h2>
+    <p style="font-size: 14px; color: #555;">{{ label_info.top_tokens }}</p>
+</div>
+
+<div class="card">
+    <h2>Raw LLM Response</h2>
+    <pre style="background: #f9f9f9; padding: 12px; border-radius: 4px; white-space: pre-wrap; font-size: 13px;">{{ label_info.raw_response }}</pre>
+</div>
+
+<div class="card">
+    <h2>Activating Samples ({{ samples | length }})</h2>
+    {% for s in samples %}
+    <div class="sample-text">
+        <strong>Activation: {{ "%.4f" | format(s.activation) }}</strong>
+        <p>{{ s.chunk_text }}</p>
+    </div>
+    {% endfor %}
+    {% if not samples %}
+    <p style="color: #7f8c8d;">No samples available.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Control Samples ({{ controls | length }})</h2>
+    {% for c in controls %}
+    <div class="sample-text control-text">
+        <strong>From Feature {{ c.feature }} (activation: {{ "%.4f" | format(c.activation) }})</strong>
+        <p>{{ c.chunk_text }}</p>
+    </div>
+    {% endfor %}
+    {% if not controls %}
+    <p style="color: #7f8c8d;">No control samples available.</p>
+    {% endif %}
+</div>
+
+<div style="margin-top: 15px;">
+    <a href="/features">Back to features list</a>
+</div>
+{% endblock %}

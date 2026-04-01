@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Feature Labels — SAE Pipeline{% endblock %}
+
+{% block content %}
+<h1>Feature Labels</h1>
+
+<div class="controls">
+    <input type="text" id="search" placeholder="Search by label text..." value="{{ search }}">
+    <select id="status-filter">
+        <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+        <option value="success" {% if status == 'success' %}selected{% endif %}>Success</option>
+        <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
+    </select>
+    <button onclick="applyFilters()">Filter</button>
+    <span style="color: #7f8c8d; font-size: 13px;">
+        Showing {{ features | length }} of {{ total }} features (page {{ page }} of {{ total_pages }})
+    </span>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Feature</th>
+            <th>Label</th>
+            <th>Top Tokens</th>
+            <th>Time (ms)</th>
+            <th>Input Tokens</th>
+            <th>Output Tokens</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for f in features %}
+        <tr>
+            <td><a href="/features/{{ f.feature }}">{{ f.feature }}</a></td>
+            <td class="{% if f.label == '[FAILED]' %}failed{% endif %}">{{ f.label }}</td>
+            <td style="color: #7f8c8d; font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.top_tokens }}</td>
+            <td>{{ "%.0f" | format(f.time_ms) }}</td>
+            <td>{{ f.input_tokens }}</td>
+            <td>{{ f.output_tokens }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="/features?page={{ page - 1 }}&status={{ status }}&search={{ search }}">Prev</a>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="active">{{ p }}</span>
+        {% elif (p - page) | abs <= 3 or p == 1 or p == total_pages %}
+        <a href="/features?page={{ p }}&status={{ status }}&search={{ search }}">{{ p }}</a>
+        {% elif (p - page) | abs == 4 %}
+        <span>...</span>
+        {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="/features?page={{ page + 1 }}&status={{ status }}&search={{ search }}">Next</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+    const search = document.getElementById('search').value;
+    const status = document.getElementById('status-filter').value;
+    window.location.href = `/features?page=1&status=${status}&search=${encodeURIComponent(search)}`;
+}
+document.getElementById('search').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyFilters();
+});
+</script>
+{% endblock %}
