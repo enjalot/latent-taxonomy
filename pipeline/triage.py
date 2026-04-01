@@ -1,85 +1,52 @@
-"""SAE model loading and triage utilities."""
+"""SAE model loading utilities."""
 
-import torch
-from dataclasses import dataclass
+import os
+
 from pipeline.config import PipelineConfig
 
 
 def load_sae_model(config: PipelineConfig):
-    """Load SAE model from hub, local path, or modal volume.
+    """Load SAE model from hub or local path using latentsae.
 
-    Returns the SAE model object with decoder weights accessible via
-    model.W_dec (shape: [n_features, d_in]).
+    Returns a latentsae.Sae object with:
+    - model.W_dec: decoder weights [n_features, d_in]
+    - model.encode(x): encode embeddings to sparse features
+    - model.num_latents: number of features
+    - model.d_in: input dimension
     """
+    from latentsae.sae import Sae
+
     if config.model_source == "hub":
-        from huggingface_hub import hf_hub_download
-        import json
-        import os
-
-        # Download config and model files
-        config_path = hf_hub_download(
-            repo_id=config.model_repo,
-            filename=f"{config.model_name}/cfg.json",
-        )
-        model_path = hf_hub_download(
-            repo_id=config.model_repo,
-            filename=f"{config.model_name}/sae_weights.safetensors",
-        )
-
-        with open(config_path) as f:
-            cfg = json.load(f)
-
-        from safetensors.torch import load_file
-        state_dict = load_file(model_path)
-
-        return SAEModel(state_dict, cfg)
+        print(f"Loading SAE from hub: {config.model_repo} / {config.model_name}")
+        return Sae.load_from_hub(config.model_repo, config.model_name)
 
     elif config.model_source == "local":
-        import json
-        import os
+        path = os.path.expanduser(config.model_path)
+        print(f"Loading SAE from local: {path}")
+        return Sae.load_from_disk(path)
 
-        base = config.model_path or "."
-        config_path = os.path.join(base, config.model_name, "cfg.json")
-        model_path = os.path.join(base, config.model_name, "sae_weights.safetensors")
+    elif config.model_source == "modal":
+        import subprocess
+        import tempfile
 
-        with open(config_path) as f:
-            cfg = json.load(f)
+        local_dir = os.path.join(
+            tempfile.gettempdir(), "latent-taxonomy-modal",
+            config.modal_volume, config.modal_path or ""
+        )
+        os.makedirs(local_dir, exist_ok=True)
 
-        from safetensors.torch import load_file
-        state_dict = load_file(model_path)
+        cfg_path = os.path.join(local_dir, "cfg.json")
+        sae_path = os.path.join(local_dir, "sae.safetensors")
+        if not (os.path.exists(cfg_path) and os.path.exists(sae_path)):
+            print(f"Downloading from Modal volume '{config.modal_volume}'...")
+            for fname in ["cfg.json", "sae.safetensors"]:
+                remote = f"{config.modal_path}/{fname}" if config.modal_path else fname
+                subprocess.run(
+                    ["modal", "volume", "get", config.modal_volume, remote, os.path.join(local_dir, fname)],
+                    check=True,
+                )
 
-        return SAEModel(state_dict, cfg)
+        return Sae.load_from_disk(local_dir)
 
     else:
         raise ValueError(f"Unknown model source: {config.model_source}")
-
-
-class SAEModel:
-    """Minimal SAE model wrapper for accessing decoder weights."""
-
-    def __init__(self, state_dict: dict, cfg: dict):
-        self.cfg = cfg
-        self.state_dict = state_dict
-        # Decoder weight matrix: [n_features, d_in]
-        if "W_dec" in state_dict:
-            self.W_dec = state_dict["W_dec"]
-        elif "decoder.weight" in state_dict:
-            self.W_dec = state_dict["decoder.weight"]
-        else:
-            # Try to find any decoder weight
-            for key in state_dict:
-                if "dec" in key.lower():
-                    self.W_dec = state_dict[key]
-                    break
-            else:
-                raise ValueError(
-                    f"Could not find decoder weights in state dict. Keys: {list(state_dict.keys())}"
-                )
-
-    @property
-    def n_features(self) -> int:
-        return self.W_dec.shape[0]
-
-    @property
-    def d_in(self) -> int:
-        return self.W_dec.shape[1]

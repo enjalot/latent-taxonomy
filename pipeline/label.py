@@ -275,7 +275,7 @@ async def label_features(
     # Load SAE model for decoder weights
     print(f"Loading SAE model ({sae_config.model_source}: {sae_config.model_repo}/{sae_config.model_name})...")
     sae_model = load_sae_model(sae_config)
-    print(f"  {sae_model.n_features} features, d_in={sae_model.d_in}")
+    print(f"  {sae_model.num_latents} features, d_in={sae_model.d_in}")
 
     # Compute similar features for control samples
     print("Computing feature similarities...")

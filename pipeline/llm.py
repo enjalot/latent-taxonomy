@@ -112,6 +112,10 @@ class LLMClient:
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         content = response.choices[0].message.content or ""
+        # Strip Qwen3-style thinking tags (model thinks in <think>...</think>)
+        import re
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
         input_tokens = 0
         output_tokens = 0
         if response.usage:
