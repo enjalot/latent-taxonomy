@@ -31,9 +31,10 @@ class LLMClient:
     def __init__(self, config: LLMConfig):
         self.config = config
 
-        # Adjust defaults for ollama
+        # Adjust defaults for ollama — keep concurrency low to avoid thrashing
+        # Set OLLAMA_NUM_PARALLEL=4 and OLLAMA_KEEP_ALIVE=60m for best throughput
         if config.provider == "ollama" and config.max_concurrent == 20:
-            config.max_concurrent = 1
+            config.max_concurrent = 2
 
         self._semaphore = asyncio.Semaphore(config.max_concurrent)
         self._client = None
@@ -100,6 +101,12 @@ class LLMClient:
         client = self._get_openai_client()
 
         start = time.perf_counter()
+        # GPT-5+ models use max_completion_tokens; older models and Ollama use max_tokens
+        token_kwarg = (
+            {"max_completion_tokens": self.config.max_tokens}
+            if self.config.provider == "openai" and "gpt-5" in self.config.model
+            else {"max_tokens": self.config.max_tokens}
+        )
         response = await client.chat.completions.create(
             model=self.config.model,
             messages=[
@@ -107,7 +114,7 @@ class LLMClient:
                 {"role": "user", "content": user},
             ],
             temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
+            **token_kwarg,
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
 

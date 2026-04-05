@@ -397,8 +397,8 @@ async def label_features(
             }
             all_results.append(result)
 
-        # Save progress every 20 features
-        if (len(all_results) - len(existing_results)) % 20 < batch_size or end == len(features):
+        # Save progress every 100 features (less disk I/O)
+        if (len(all_results) - len(existing_results)) % 100 < batch_size or end == len(features):
             output_file.parent.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(all_results).to_parquet(output_path, index=False)
 
