@@ -3,3 +3,7 @@ venv
 data
 node_modules
 .env
+__pycache__/
+*.pyc
+pipeline/data/
+pipeline/data/shard_cache/
