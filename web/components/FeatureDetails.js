@@ -2,8 +2,20 @@ import React, { useEffect, useState, useMemo} from 'react';
 import { Typography, Descriptions } from 'antd';
 import { interpolateTurbo } from 'd3-scale-chromatic';
 import { rgb } from 'd3-color';
-const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
+const { parquetRead } = await import('hyparquet')
 import { useRouter } from 'next/router'; // Import useRouter from next/router
+
+// Fetch the whole file in a single GET and wrap it as an in-memory AsyncBuffer.
+// hyparquet's asyncBufferFromUrl reads the footer via HTTP Range requests, which
+// breaks on GitHub Pages when the parquet is served gzip-compressed (the range
+// overruns the gzipped body -> 416 -> "footer != PAR1"). A full GET lets the
+// browser transparently decompress gzip.
+const bufferFromUrl = async (url) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`failed to fetch ${url}: ${res.status}`)
+  const arrayBuffer = await res.arrayBuffer()
+  return { byteLength: arrayBuffer.byteLength, slice: (start, end) => arrayBuffer.slice(start, end) }
+}
 
 import styles from './FeatureDetails.module.css';
 
@@ -61,7 +73,7 @@ const FeatureDetails = ({
   useEffect(() => {
     if(!model || !feature) return;
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
+      const buffer = await bufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
       const data = await parquetRead({
         file: buffer,
         rowFormat: 'object',

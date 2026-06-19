@@ -16,7 +16,20 @@ import Scatter from '../components/Scatter';
 import StaticScatter from '../components/StaticScatter';
 
 
-const { asyncBufferFromUrl, parquetRead } = await import('hyparquet')
+const { parquetRead } = await import('hyparquet')
+
+// Fetch the whole file in a single GET and wrap it as an in-memory AsyncBuffer.
+// We avoid hyparquet's asyncBufferFromUrl because it reads the footer via HTTP
+// Range requests, which GitHub Pages breaks when it serves the file
+// gzip-compressed (content-encoding: gzip): the range is keyed to the
+// uncompressed size and overruns the gzipped body, returning 416 and a missing
+// PAR1 footer. A full GET lets the browser transparently decompress gzip.
+const bufferFromUrl = async (url) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`failed to fetch ${url}: ${res.status}`)
+  const arrayBuffer = await res.arrayBuffer()
+  return { byteLength: arrayBuffer.byteLength, slice: (start, end) => arrayBuffer.slice(start, end) }
+}
 
 const getWindow = () => (typeof window !== 'undefined' ? window : { location: { hash: '' } });
 
@@ -106,7 +119,7 @@ export default function Home() {
   const [points, setPoints] = useState([])
   useEffect(() => {
     const asyncRead = async () => {
-      const buffer = await asyncBufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet?cachebust=1`)
+      const buffer = await bufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet?cachebust=1`)
       const data = await parquetRead({
         file: buffer,
         onComplete: data => {
