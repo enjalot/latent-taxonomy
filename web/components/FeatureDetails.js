@@ -71,7 +71,7 @@ const FeatureDetails = ({
   const router = useRouter(); // Use useRouter from next/router
   const basePath = useMemo(() => router.basePath, [router])
   useEffect(() => {
-    if(!model || !feature) return;
+    if(!model || !feature || !chunkMapping) return;
     const asyncRead = async () => {
       const buffer = await bufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
       const data = await parquetRead({

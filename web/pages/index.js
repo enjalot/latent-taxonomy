@@ -47,6 +47,9 @@ export default function Home() {
   // unfortunately regl-scatter doesn't even render in iOS, and has trouble on Android
   const [isIOSDevice, setIsIOSDevice] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  // narrow viewport (below antd's lg breakpoint) — stack the map and details
+  // vertically and let the column scroll, regardless of device type
+  const [isNarrow, setIsNarrow] = useState(false);
 
   useEffect(() => {
     const checkIsIOS = () => {
@@ -59,7 +62,15 @@ export default function Home() {
 
     setIsIOSDevice(checkIsIOS());
     setIsMobile(checkIsMobileDevice());
+
+    const checkIsNarrow = () => setIsNarrow(window.innerWidth < 992);
+    checkIsNarrow();
+    window.addEventListener('resize', checkIsNarrow);
+    return () => window.removeEventListener('resize', checkIsNarrow);
   }, []);
+
+  // Stack vertically (and scroll) on phones or any narrow window
+  const stacked = isMobile || isNarrow;
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const mainCardRef = useRef(null);
@@ -101,7 +112,13 @@ export default function Home() {
         // console.log("DIMENISONS", mainCardRef.current.clientHeight, mainCardRef.current.offsetHeight)
         setDimensions({
           width: offsetWidth - 2,
-          height: isMobile ? 300 : offsetHeight - 148, // Subtracting the various headers and pieces
+          // On phones use a short fixed map; on a narrow (but not phone) window
+          // give the map ~60% of the viewport so the details stack below it.
+          height: isMobile
+            ? 300
+            : isNarrow
+              ? Math.min(Math.round(window.innerHeight * 0.6), 480)
+              : offsetHeight - 148, // Subtracting the various headers and pieces
         });
       }
     };
@@ -110,7 +127,7 @@ export default function Home() {
     window.addEventListener('resize', updateDimensions);
 
     return () => window.removeEventListener('resize', updateDimensions);
-  }, [isMobile]);
+  }, [isMobile, isNarrow]);
 
   const handleModelSelect = (model) => {
     setSelectedModel(model)
@@ -294,7 +311,7 @@ export default function Home() {
       <div className={styles.homeContainer}>
         {/* <Title className={styles.pageTitle}>Latent Taxonomy</Title> */}
         {/* <Row className={styles.fullHeightRow} gutter={[24, 24]}> */}
-        <Row className={`${styles.fullHeightRow} ${isMobile ? styles.mobileRow : ''}`} gutter={[24, 24]}>
+        <Row className={`${styles.fullHeightRow} ${stacked ? styles.mobileRow : ''}`} gutter={[24, 24]}>
           <Col xs={24} lg={12} className={styles.fullHeightCol} >
             <Card title={
               <div className={styles.modelTitle}>
@@ -336,6 +353,7 @@ export default function Home() {
                   { !isMobile ? <Scatter
                     points={points}
                     duration={2000}
+                    minZoom={0.75}
                     width={dimensions.width}
                     height={dimensions.height}
                     colorScaleType="continuous"

@@ -20,6 +20,7 @@ ScatterPlot.propTypes = {
   opacity: PropTypes.number,
   opacityBy: PropTypes.string,
   lasso: PropTypes.bool,
+  minZoom: PropTypes.number,             // smallest allowed zoom (1 = initial fit)
   duration: PropTypes.number,
   onScatter: PropTypes.func,
   onView: PropTypes.func,
@@ -63,6 +64,7 @@ function ScatterPlot ({
   opacity = 0,
   opacityBy,
   lasso = false,
+  minZoom = null,
   onScatter,
   onView,
   onSelect,
@@ -105,9 +107,21 @@ function ScatterPlot ({
     })
 
     onView && onView(xScale, yScale)
+    // cameraDistance grows as you zoom out (1 = initial fit), so the largest
+    // allowed distance is 1 / minZoom.
+    const maxCameraDistance = minZoom ? 1 / minZoom : null;
     scatterplot.subscribe(
       "view",
       ({ camera, view, xScale: xs, yScale: ys }) => {
+        if (maxCameraDistance) {
+          const distance = scatterplot.get('cameraDistance');
+          if (distance > maxCameraDistance + 1e-4) {
+            // Snap back to the zoom-out limit; this fires another "view" event
+            // (within the limit) that updates the domains below.
+            scatterplot.set({ cameraDistance: maxCameraDistance });
+            return;
+          }
+        }
         xDomain.current = xs.domain();
         yDomain.current = ys.domain();
         onView && onView(xDomain.current, yDomain.current)
@@ -132,7 +146,7 @@ function ScatterPlot ({
       scatterplotRef.current = null;
       scatterplot.destroy();
     };
-  }, [width, height, onScatter, onView, onSelect, onHover])
+  }, [width, height, minZoom, onScatter, onView, onSelect, onHover])
 
   const prevPointsRef = useRef();
   useEffect(() => {

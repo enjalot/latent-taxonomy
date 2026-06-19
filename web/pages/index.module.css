@@ -24,11 +24,18 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+/* Stacked layout: map on top, feature details flow below; the row scrolls. */
 .mobileRow .fullHeightCol {
   height: auto;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
-  height: 450px;
+}
+.mobileRow .fullHeightCard {
+  height: auto;
+}
+.mobileRow .fullHeightCard :global(.ant-card-body) {
+  height: auto;
+  overflow: visible;
 }
 
 .fullHeightCol {
@@ -98,5 +105,16 @@
 .extraInfo {
   height: 64px;
   padding: 12px;
+}
+
+/* Narrow viewport (matches the JS isNarrow threshold / antd lg breakpoint):
+   release the fixed-height cap so the whole page scrolls and the stacked
+   feature details below the map are reachable by normal page scrolling. */
+@media (max-width: 991px) {
+  .homeContainer {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
 }
 
