@@ -70,3 +70,47 @@
   gap: 8px;
   cursor: pointer;
 }
+
+/* article-style model scorecard (shown when no feature is selected) */
+.evalsCard {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid lightgray;
+  border-radius: 4px;
+  max-width: 520px;
+}
+
+.evalsCard h2 {
+  font-size: 14px;
+  margin: 0 0 8px 0;
+}
+
+.evalsCorpus {
+  font-size: 12px;
+  color: #555;
+  margin: 0 0 8px 0;
+}
+
+.evalsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.evalsTable td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.evalsTable td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.evalsNotes {
+  font-size: 11px;
+  color: #777;
+  font-style: italic;
+  margin: 8px 0 0 0;
+}

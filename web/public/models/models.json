@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "id": "enjalot/sae-nomic-text-v1.5-FineWeb-edu-100BT_64_32",
+      "name": "NOMIC_FWEDU_25k",
+      "label": "NOMIC_FWEDU_25k",
+      "repo": "enjalot/sae-nomic-text-v1.5-FineWeb-edu-100BT",
+      "metadata": "models/NOMIC_FWEDU_25k/metadata.json"
+    },
+    {
+      "id": "enjalot/sae-all-MiniLM-L6-v2-stagej-49K_64_128",
+      "name": "MINILM_STAGEJ_49K",
+      "label": "MINILM_STAGEJ_49K",
+      "repo": "enjalot/sae-all-MiniLM-L6-v2-stagej-49K",
+      "metadata": "models/MINILM_STAGEJ_49K/metadata.json"
+    }
+  ]
+}

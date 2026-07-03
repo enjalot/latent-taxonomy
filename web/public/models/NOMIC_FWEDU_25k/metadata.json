@@ -1,1 +1,14 @@
-{"id": "enjalot/sae-nomic-text-v1.5-FineWeb-edu-100BT_64_32", "name": "NOMIC_FWEDU_25k", "repo": "enjalot/sae-nomic-text-v1.5-FineWeb-edu-100BT", "topk": 64, "expansion": 32, "d_in": 768, "num_latents": 24576, "source_model": "nomic-ai/nomic-embed-text-v1.5"}
+{
+  "id": "enjalot/sae-nomic-text-v1.5-FineWeb-edu-100BT_64_32",
+  "name": "NOMIC_FWEDU_25k",
+  "repo": "enjalot/sae-nomic-text-v1.5-FineWeb-edu-100BT",
+  "topk": 64,
+  "expansion": 32,
+  "d_in": 768,
+  "num_latents": 24576,
+  "source_model": "nomic-ai/nomic-embed-text-v1.5",
+  "modality": "text-pooled",
+  "corpus": "100 billion tokens of FineWeb-edu (500-token chunks)",
+  "corpus_short": "100 billion tokens of FineWeb-edu",
+  "corpus_url": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu"
+}

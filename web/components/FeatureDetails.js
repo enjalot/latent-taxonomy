@@ -57,23 +57,83 @@ const ActivationBar = ({
   )
 }
 
-const FeatureDetails = ({ 
+// Article-style scorecard for a model's eval numbers (metadata.evals).
+// Shown when no feature is selected; hidden entirely for models without evals.
+const showPct = (v) => (v === null || v === undefined) ? "—" : `${(v * 100).toFixed(1)}%`;
+const EvalsCard = ({ metadata }) => {
+  if (!metadata?.evals) return null;
+  const e = metadata.evals;
+  const rows = [
+    ["Reconstruction (FVU, held-out)", e.fvu != null ? e.fvu.toFixed(3) : "—"],
+    ["Dead features", e.dead_pct != null ? `${e.dead_pct}%` : "—"],
+    ["Coherence (stratified)", e.coherence_stratified != null ? showPct(e.coherence_stratified) : "not yet run"],
+  ];
+  if (e.ndcg_recovered) {
+    Object.entries(e.ndcg_recovered).forEach(([ds, v]) => {
+      rows.push([`nDCG@10 recovered — ${ds.replace(/_/g, "-")}`, showPct(v)]);
+    });
+  }
+  return (
+    <div className={styles.evalsCard}>
+      <h2>Model scorecard</h2>
+      {metadata.corpus && <p className={styles.evalsCorpus}>Trained on {metadata.corpus}.</p>}
+      {metadata.matryoshka_levels && (
+        <p className={styles.evalsCorpus}>
+          Matryoshka levels {metadata.matryoshka_levels.join(" / ")} with k = {(metadata.ks || []).join(" / ")}.
+        </p>
+      )}
+      <table className={styles.evalsTable}>
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}><td>{k}</td><td>{v}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      {e.notes && <p className={styles.evalsNotes}>{e.notes}</p>}
+    </div>
+  );
+};
+
+const FeatureDetails = ({
   feature,
   model,
+  metadata,
   chunkMapping,
   nearestFeatures,
   features,
   onHover = () => {},
   onSelect = () => {}
 }) => {
-  // Fetch samples 
+  // Fetch samples
   const [samples, setSamples] = useState([])
   const router = useRouter(); // Use useRouter from next/router
   const basePath = useMemo(() => router.basePath, [router])
+
+  // look up features by their id (feature ids are NOT array indices when a
+  // model publishes a labeled subset of its latents)
+  const featureById = useMemo(() => {
+    const m = new Map();
+    (features || []).forEach(f => m.set(f.feature, f));
+    return m;
+  }, [features]);
+
+  // Samples can be hosted off-origin (big models keep their ~1GB of sample
+  // shards on e.g. a HF dataset — metadata.samples_base_url). During local
+  // dev, samples_base_url_local (if present) wins so not-yet-uploaded shards
+  // can be served from disk (see pipeline/serve_samples.py).
+  const samplesBase = useMemo(() => {
+    if (!model) return null;
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    if (isLocal && metadata?.samples_base_url_local) return metadata.samples_base_url_local;
+    if (metadata?.samples_base_url) return metadata.samples_base_url;
+    return `${basePath}/models/${model.value}/samples`;
+  }, [model, metadata, basePath]);
+
   useEffect(() => {
-    if(!model || !feature || !chunkMapping) return;
+    if(!model || !feature || !chunkMapping || !samplesBase) return;
     const asyncRead = async () => {
-      const buffer = await bufferFromUrl(`${basePath}/models/${model.label}/samples/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
+      const buffer = await bufferFromUrl(`${samplesBase}/chunk_${chunkMapping[feature.feature]}.parquet?cachebust=1`)
       const data = await parquetRead({
         file: buffer,
         rowFormat: 'object',
@@ -92,7 +152,7 @@ const FeatureDetails = ({
       })
     }
     asyncRead()
-  }, [feature, chunkMapping, model, basePath])
+  }, [feature, chunkMapping, model, samplesBase])
 
   useEffect(() => {
     console.log("samples", samples.length)
@@ -102,7 +162,10 @@ const FeatureDetails = ({
 
   return (
     <div className={styles.details}>
-      {!feature ? <Paragraph>Select a feature to view details.</Paragraph>: <>
+      {!feature ? <>
+        <Paragraph>Select a feature to view details.</Paragraph>
+        <EvalsCard metadata={metadata} />
+      </> : <>
         <Title level={4}>{feature.feature}: {feature.label}</Title>
 
         <div className={styles.similarFeatures}>
@@ -136,22 +199,27 @@ const FeatureDetails = ({
           <div>
             {samples.map((sample,i) => (
               <div key={"sample-"+i} className={styles.sample}>
-                {/* <ActivationBar 
+                {/* <ActivationBar
                   feature={feature}
                   activation={sample.activation}
                 /> */}
-                <div className={styles.sampleId}><a href={sample.url} target="_blank">{sample.id}</a></div>
+                <div className={styles.sampleId}>{sample.url
+                  ? <a href={sample.url} target="_blank">{sample.id}</a>
+                  : <span>{sample.id}</span>}</div>
                 <div className={styles.sampleText}>{sample.text}</div>
                 <div className={styles.sampleTopFeatures}>
-                  {sample.top_acts.map((act,i) => {
-                    let f = features[sample.top_indices[i]]
+                  {(sample.top_acts || []).map((act,i) => {
+                    // top_indices hold feature ids; look features up by id
+                    // (ids are not array indices for subset-published models)
+                    let f = featureById.get(parseInt(sample.top_indices[i]))
                     return {
                       i,
                       feature: f,
                       activation: act,
-                      percent: act/f.max_activation
+                      percent: f ? act/f.max_activation : 0
                     }
                   })
+                  .filter(f => f.feature) // unlabeled features have no entry
                   //.sort((a,b) => b.percent - a.percent)
                   .slice(0, 10)
                   .map(f => (

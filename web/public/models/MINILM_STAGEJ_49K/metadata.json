@@ -1,0 +1,38 @@
+{
+  "id": "enjalot/sae-all-MiniLM-L6-v2-stagej-49K_64_128",
+  "name": "MINILM_STAGEJ_49K",
+  "num_features_labeled": 45059,
+  "topk": 64,
+  "expansion": 128,
+  "d_in": 384,
+  "num_latents": 49152,
+  "matryoshka_levels": [
+    512,
+    2048,
+    8192,
+    49152
+  ],
+  "ks": [
+    8,
+    16,
+    32,
+    64
+  ],
+  "repo": "enjalot/sae-all-MiniLM-L6-v2-stagej-49K",
+  "source_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "modality": "text-pooled",
+  "corpus": "306M 120-token chunks: FineWeb-edu 10BT + RedPajama-V2 + Pile-uncopyrighted (replay 2x)",
+  "corpus_short": "FineWeb-edu + RedPajama + Pile (120-token chunks)",
+  "evals": {
+    "fvu": 0.1393,
+    "dead_pct": 2.9,
+    "coherence_stratified": null,
+    "ndcg_recovered": {
+      "scifact": 0.882,
+      "trec_covid": 1.053
+    },
+    "notes": "Held-out 200K fineweb chunks (full 49152/k=64 level). ndcg_recovered = reconstructed/raw nDCG@10 on dense retrieval. Stratified LLM coherence not yet run for this SAE; label-quality proxy: 79% distinct labels, 35% generic-ish (qwen2.5:32b, uncalibrated)."
+  },
+  "samples_base_url": "https://huggingface.co/datasets/enjalot/latent-taxonomy-samples/resolve/main/MINILM_STAGEJ_49K/samples",
+  "samples_base_url_local": "http://localhost:8787/MINILM_STAGEJ_49K/samples"
+}

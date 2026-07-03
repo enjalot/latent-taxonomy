@@ -38,11 +38,6 @@ import styles from './index.module.css';
 const { Title } = Typography;
 const showInt = format(",d")
 
-const models = [
-   { label: "NOMIC_FWEDU_25k", value: "NOMIC_FWEDU_25k" },
-   { label: "NOMIC_FWEDU_100k (coming soon)", value: "NOMIC_FWEDU_100k", disabled: true },
-]
-
 export default function Home() {
   // unfortunately regl-scatter doesn't even render in iOS, and has trouble on Android
   const [isIOSDevice, setIsIOSDevice] = useState(false);
@@ -77,16 +72,39 @@ export default function Home() {
 
   const router = useRouter(); // Use useRouter from next/router
   const basePath = useMemo(() => router.basePath, [router])
-  const queryParams = router.query;
-  // const initialModel = queryParams.model || models[0].value;
-  // const initialFeature = queryParams.feature;
-  const initialModel = getWindow().location.hash.split('&').find(param => param.startsWith('model='))?.split('=')[1] || models[0].value;
-  const initialFeature = getWindow().location.hash.split('&').find(param => param.startsWith('feature='))?.split('=')[1];
+  // location.hash includes the leading '#'; strip it so the first param parses too
+  const hashParams = getWindow().location.hash.replace(/^#/, '').split('&');
+  const initialModel = hashParams.find(param => param.startsWith('model='))?.split('=')[1];
+  const initialFeature = hashParams.find(param => param.startsWith('feature='))?.split('=')[1];
 
+  // Model registry: driven by the models.json manifest in public/models/
+  // instead of a hardcoded array. Each entry: { id, name, label, repo, metadata }.
+  // The Select's option `value` is the model `name`, which is also the
+  // directory name under models/ that all data fetches use.
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState(null);
+  useEffect(() => {
+    const asyncRead = async () => {
+      const manifest = await fetch(`${basePath}/models/models.json?cachebust=1`).then(r => r.json())
+      const ms = manifest.models.map(m => ({ ...m, label: m.label || m.name, value: m.name }))
+      setModels(ms)
+      setSelectedModel(ms.find(m => m.value === initialModel) || ms[0])
+    }
+    asyncRead()
+  }, [basePath])
 
-  const [selectedModel, setSelectedModel] = useState(models.find(m => m.value === initialModel) || models[0]);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [features, setFeatures] = useState([])
+
+  // Map feature id -> row index in the features/points arrays. For models
+  // where only a subset of features is published (e.g. labeled-only), the
+  // feature id is NOT the array index, so all scatter selection must go
+  // through this map.
+  const featureIndexById = useMemo(() => {
+    const m = new Map();
+    features.forEach((f, i) => m.set(f.feature, i));
+    return m;
+  }, [features]);
 
   useEffect(() => {
     console.log("INITIAL FEATURE", initialFeature, features.length)
@@ -94,13 +112,14 @@ export default function Home() {
       const feature = features.find(f => f.feature === parseInt(initialFeature));
       setSelectedFeature(feature);
       if(feature)
-        setSelectedIndices([feature.feature])
+        setSelectedIndices([featureIndexById.get(feature.feature)])
     }
   }, [features, initialFeature]);
 
   useEffect(() => {
+    if (!selectedModel) return;
     const currentHash = getWindow().location.hash;
-    const newHash = currentHash.replace(/model=[^&]*/, `model=${selectedModel?.value}`);
+    const newHash = currentHash.replace(/model=[^&]*/, `model=${selectedModel.value}`);
     getWindow().location.hash = newHash
   }, [selectedModel]);
 
@@ -129,14 +148,24 @@ export default function Home() {
     return () => window.removeEventListener('resize', updateDimensions);
   }, [isMobile, isNarrow]);
 
-  const handleModelSelect = (model) => {
+  // antd Select onChange passes the option `value`; map it back to the model object
+  const handleModelSelect = (value) => {
+    const model = models.find(m => m.value === value)
+    if (!model) return;
     setSelectedModel(model)
+    setSelectedFeature(null)
+    setSelectedIndices([])
+    setFeatures([])
+    setPoints([])
+    // drop any feature selection carried over from the previous model
+    getWindow().location.hash = `model=${model.value}&feature=`;
   }
 
   const [points, setPoints] = useState([])
   useEffect(() => {
+    if (!selectedModel) return;
     const asyncRead = async () => {
-      const buffer = await bufferFromUrl(`${basePath}/models/${selectedModel.label}/features.parquet?cachebust=1`)
+      const buffer = await bufferFromUrl(`${basePath}/models/${selectedModel.value}/features.parquet?cachebust=1`)
       const data = await parquetRead({
         file: buffer,
         onComplete: data => {
@@ -211,10 +240,14 @@ export default function Home() {
   const [modelMetadata, setModelMetadata] = useState(null)
   const [chunkMapping, setChunkMapping] = useState(null)
   useEffect(() => {
+    if (!selectedModel) return;
+    setModelMetadata(null)
+    setChunkMapping(null)
     const asyncRead = async () => {
-      const meta = await fetch(`${basePath}/models/${selectedModel.label}/metadata.json?cachebust=1`).then(r => r.json())
+      const metadataPath = selectedModel.metadata ? `${basePath}/${selectedModel.metadata}` : `${basePath}/models/${selectedModel.value}/metadata.json`
+      const meta = await fetch(`${metadataPath}?cachebust=1`).then(r => r.json())
       setModelMetadata(meta)
-      const chunkMapping = await fetch(`${basePath}/models/${selectedModel.label}/chunk_mapping.json?cachebust=1`).then(r => r.json())
+      const chunkMapping = await fetch(`${basePath}/models/${selectedModel.value}/chunk_mapping.json?cachebust=1`).then(r => r.json())
       setChunkMapping(chunkMapping)
     }
     asyncRead()
@@ -271,37 +304,35 @@ export default function Home() {
 
 
   const handleSelected = useCallback((indices) => {
-    console.log("handle selected", indices, features[indices[0]])
-    setSelectedFeature(features[indices[0]])
+    // indices are row indices into the features/points arrays (from the scatter)
+    const feature = features[indices[0]]
+    console.log("handle selected", indices, feature)
+    setSelectedFeature(feature)
     setSelectedIndices(indices)
-    // router.push({
-    //   pathname: router.pathname,
-    //   query: { ...router.query, feature: indices[0] }
-    // });
-    getWindow().location.hash = `model=${selectedModel.value}&feature=${indices[0] || ""}`;
+    getWindow().location.hash = `model=${selectedModel?.value}&feature=${feature ? feature.feature : ""}`;
 
-  }, [setSelectedIndices, features])
+  }, [setSelectedIndices, features, selectedModel])
 
   const handleFeatureSelect = useCallback((feature) => {
     console.log("FEATURE SELECTED", feature)
     setSelectedFeature(feature);
     if(feature) {
-      scatter?.select([feature.feature])
-      getWindow().location.hash = `model=${selectedModel.value}&feature=${feature.feature}`;
+      scatter?.select([featureIndexById.get(feature.feature)])
+      getWindow().location.hash = `model=${selectedModel?.value}&feature=${feature.feature}`;
 
     } else {
       scatter?.select([])
-      getWindow().location.hash = `model=${selectedModel.value}&feature=`;
+      getWindow().location.hash = `model=${selectedModel?.value}&feature=`;
     }
-  }, [scatter, setSelectedIndices, selectedModel])
+  }, [scatter, setSelectedIndices, selectedModel, featureIndexById])
 
   const handleFeatureHover = useCallback((feature) => {
-    setHoveredIndex(feature?.feature)
-  }, [setHoveredIndex])
+    setHoveredIndex(feature ? featureIndexById.get(feature.feature) : null)
+  }, [setHoveredIndex, featureIndexById])
 
   const [filteredIndices, setFilteredIndices] = useState(null)
   const handleFilter = (options) => {
-    const indices = options.slice(0,100).map(o => o.feature)
+    const indices = options.slice(0,100).map(o => featureIndexById.get(o.feature))
     setFilteredIndices(indices)
   }
 
@@ -316,14 +347,14 @@ export default function Home() {
             <Card title={
               <div className={styles.modelTitle}>
                 <div className={styles.modelMetadata}>
-                  <Select 
-                    style={{ width: '280px' }} 
-                    options={models} 
-                    value={models[0]} 
-                    onChange={handleModelSelect} 
-                    data-tooltip-id="modelTooltip" 
+                  <Select
+                    style={{ width: '280px' }}
+                    options={models}
+                    value={selectedModel?.value}
+                    onChange={handleModelSelect}
+                    data-tooltip-id="modelTooltip"
                   />
-                  {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features</span>}
+                  {modelMetadata && <span>{showInt(modelMetadata.num_latents)} features{modelMetadata.num_features_labeled && modelMetadata.num_features_labeled < modelMetadata.num_latents ? ` (${showInt(modelMetadata.num_features_labeled)} labeled)` : ''}</span>}
                 </div>
                 {modelMetadata && <span><Link href="/articles/about">more info</Link></span>}
                 <Tooltip id="modelTooltip">
@@ -334,9 +365,11 @@ export default function Home() {
             className={styles.fullHeightCard} 
             ref={mainCardRef}>
               <div className={styles.extraInfo}>
-                    { modelMetadata && !isMobile && 
-                    <p>Each dot is a feature of an <a href={`https://huggingface.co/${modelMetadata.repo}`} target='_blank'>SAE</a> 
-                      <span> trained on 100 billion tokens of <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu" target='_blank'>FineWeb-edu </a></span>
+                    { modelMetadata && !isMobile &&
+                    <p>Each dot is a feature of an <a href={`https://huggingface.co/${modelMetadata.repo}`} target='_blank'>SAE</a>
+                      <span> trained on {modelMetadata.corpus_url
+                        ? <a href={modelMetadata.corpus_url} target='_blank'>{modelMetadata.corpus_short || modelMetadata.corpus || "its corpus"} </a>
+                        : <span>{modelMetadata.corpus_short || modelMetadata.corpus || ""} </span>}</span>
                     <br></br>
                       embedded via <a href={`https://huggingface.co/${modelMetadata.source_model}`} target='_blank'>
                       {modelMetadata.source_model}
@@ -441,15 +474,16 @@ export default function Home() {
               } 
               className={styles.fullHeightCard}
             >
-             <FeatureDetails 
-              feature={selectedFeature} 
-              model={selectedModel} 
-              chunkMapping={chunkMapping} 
+             <FeatureDetails
+              feature={selectedFeature}
+              model={selectedModel}
+              metadata={modelMetadata}
+              chunkMapping={chunkMapping}
               nearestFeatures={nearestFeatures}
               features={features}
               onHover={handleFeatureHover}
-              onSelect={handleFeatureSelect} 
-            /> 
+              onSelect={handleFeatureSelect}
+            />
             </Card>
           </Col>
         </Row>

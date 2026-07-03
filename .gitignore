@@ -6,4 +6,4 @@ node_modules
 __pycache__/
 *.pyc
 pipeline/data/
-pipeline/data/shard_cache/
+pipeline/data/shard_cache/.venv/
