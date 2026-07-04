@@ -13,6 +13,13 @@
       "label": "MINILM_STAGEJ_49K",
       "repo": "enjalot/sae-all-MiniLM-L6-v2-stagej-49K",
       "metadata": "models/MINILM_STAGEJ_49K/metadata.json"
+    },
+    {
+      "id": "enjalot/sae-jina-v5-nano-multilingual-98K_64_128",
+      "name": "JINA_STAGEJ_98K",
+      "label": "JINA_STAGEJ_98K",
+      "repo": "enjalot/sae-jina-v5-nano-multilingual-98K",
+      "metadata": "models/JINA_STAGEJ_98K/metadata.json"
     }
   ]
 }

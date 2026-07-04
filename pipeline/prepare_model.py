@@ -32,6 +32,22 @@ Example (MiniLM Stage-J 49K):
     --samples-dir /data/latent-taxonomy/MINILM_STAGEJ_49K/samples \
     --meta-json pipeline/model_meta/MINILM_STAGEJ_49K.json \
     --latentsae-path /home/enjalot/code/latent-sae
+
+Example (jina Stage-J 98K, GPU embed stage — encode() is UNPROMPTED, which is
+the program standard for the document side; jina-v5's default_prompt_name is
+null so no prompt is silently applied):
+  .venv/bin/python pipeline/prepare_model.py \
+    --run-dir /data/latent-sae/experiments/results/jina_v5_nano_phase7_98K_multilingual_oldrecipe_replay8_k64_20260508_050755 \
+    --exemplars exemplars/exemplars_4M.parquet \
+    --labels exemplars/labels_full.parquet \
+    --name JINA_STAGEJ_98K \
+    --encoder jinaai/jina-embeddings-v5-text-nano-retrieval \
+    --trust-remote-code --fp16 --device cuda \
+    --work-dir /data/latent-taxonomy/JINA_STAGEJ_98K/work \
+    --out-dir web/public/models/JINA_STAGEJ_98K \
+    --samples-dir /data/latent-taxonomy/JINA_STAGEJ_98K/samples \
+    --meta-json pipeline/model_meta/JINA_STAGEJ_98K.json \
+    --stage embed
 """
 import argparse
 import json
@@ -98,7 +114,15 @@ def stage_embed(args, work):
 
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer(args.encoder, device="cpu")
+    model_kwargs = {}
+    if args.fp16:
+        model_kwargs["torch_dtype"] = torch.float16
+    model = SentenceTransformer(
+        args.encoder,
+        device=args.device,
+        trust_remote_code=args.trust_remote_code,
+        model_kwargs=model_kwargs,
+    )
     t0 = time.time()
     emb = model.encode(
         texts,
@@ -129,15 +153,16 @@ def stage_embed(args, work):
     sys.path.insert(0, args.latentsae_path)
     from latentsae.sae import Sae
 
-    sae = Sae.load_from_disk(ckpt, device="cpu")
+    sae = Sae.load_from_disk(ckpt, device=args.device)
     sae.eval()
-    log(f"SAE {ckpt}: d_in={sae.d_in} latents={sae.num_latents}")
+    log(f"SAE {ckpt}: d_in={sae.d_in} latents={sae.num_latents} device={args.device}")
     accs, idxs = [], []
     with torch.no_grad():
         for i in range(0, len(emb), 4096):
-            out = sae.encode(torch.from_numpy(emb[i : i + 4096]).float())
-            accs.append(out.top_acts.numpy().astype(np.float32))
-            idxs.append(out.top_indices.numpy().astype(np.int32))
+            batch = torch.from_numpy(emb[i : i + 4096]).float().to(args.device)
+            out = sae.encode(batch)
+            accs.append(out.top_acts.cpu().numpy().astype(np.float32))
+            idxs.append(out.top_indices.cpu().numpy().astype(np.int32))
             if (i // 4096) % 20 == 0:
                 log(f"  sae encode {i}/{len(emb)}")
     np.savez(work / "chunk_sae_topk.npz", top_acts=np.concatenate(accs), top_indices=np.concatenate(idxs))
@@ -371,6 +396,11 @@ def main():
     ap.add_argument("--name", required=True, help="model name == web/public/models/<NAME>")
     ap.add_argument("--model-id", default=None)
     ap.add_argument("--encoder", default="sentence-transformers/all-MiniLM-L6-v2")
+    ap.add_argument("--device", default="cpu", help="device for the encoder + SAE forward (cpu or cuda)")
+    ap.add_argument("--trust-remote-code", action="store_true",
+                    help="pass trust_remote_code=True to SentenceTransformer (needed for e.g. jina-v5)")
+    ap.add_argument("--fp16", action="store_true",
+                    help="load the encoder in torch.float16 (embeddings are still saved float32)")
     ap.add_argument("--top-n", type=int, default=10, help="exemplars per feature for layout + samples")
     ap.add_argument("--batch-size", type=int, default=256)
     ap.add_argument("--work-dir", required=True, help="cache dir for intermediate arrays")
