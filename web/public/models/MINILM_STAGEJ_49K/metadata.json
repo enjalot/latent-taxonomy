@@ -26,12 +26,12 @@
   "evals": {
     "fvu": 0.1393,
     "dead_pct": 2.9,
-    "coherence_stratified": null,
+    "coherence_stratified": 0.461,
     "ndcg_recovered": {
       "scifact": 0.882,
       "trec_covid": 1.053
     },
-    "notes": "Held-out 200K fineweb chunks (full 49152/k=64 level). ndcg_recovered = reconstructed/raw nDCG@10 on dense retrieval. Stratified LLM coherence not yet run for this SAE; label-quality proxy: 79% distinct labels, 35% generic-ish (qwen2.5:32b, uncalibrated)."
+    "notes": "Held-out 200K fineweb chunks (full 49152/k=64 level). ndcg_recovered = reconstructed/raw nDCG@10 on dense retrieval. coherence_stratified = COH+THM 46.1% Wilson 95% CI [41.8, 50.4] (n=512 random live features, 10 decile-stratified windows, qwen2.5:32b describe+judge, 2026-07-04; POL 49.2%). Label-quality proxy: 79% distinct labels, 35% generic-ish (qwen2.5:32b, uncalibrated)."
   },
   "samples_base_url": "https://huggingface.co/datasets/enjalot/latent-taxonomy-samples/resolve/main/MINILM_STAGEJ_49K/samples",
   "samples_base_url_local": "http://localhost:8787/MINILM_STAGEJ_49K/samples"
