@@ -48,11 +48,26 @@ null so no prompt is silently applied):
     --samples-dir /data/latent-taxonomy/JINA_STAGEJ_98K/samples \
     --meta-json pipeline/model_meta/JINA_STAGEJ_98K.json \
     --stage embed
+
+Example (per-token ColBERT 64K — span-exemplar shards instead of pooled
+parquets; layout embeds the span text with MiniLM, samples keep the
+**fired-token** markers + fire_count; no SAE forward):
+  .venv/bin/python pipeline/prepare_model.py \
+    --run-dir /data/latent-sae/experiments/results/colbert_jinacolbert128_batchtopk_64K_k32_2B_20260702_224758 \
+    --span-exemplars "flagship_span_full_shard{shard}.json" \
+    --name COLBERT_JINA_64K \
+    --device cuda \
+    --work-dir /data/latent-taxonomy/COLBERT_JINA_64K/work \
+    --out-dir web/public/models/COLBERT_JINA_64K \
+    --samples-dir /data/latent-taxonomy/COLBERT_JINA_64K/samples \
+    --meta-json pipeline/model_meta/COLBERT_JINA_64K.json \
+    --stage embed
 """
 import argparse
 import json
 import math
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -93,10 +108,137 @@ def load_texts(args, chunk_ids):
 
 
 # ----------------------------------------------------------------------------
+# per-token (span) mode — COLBERT-style SAEs over token embeddings
+#
+# Per-token runs don't have pooled exemplar parquets; instead the labeling
+# pipeline produced span-exemplar shards (flagship_span_full_shard{N}.json:
+# feature -> [{activation, window}] with fired tokens wrapped in **markers**
+# and a "(fires Nx in this chunk)" suffix) and label shards
+# (feature_labels_span_full_shard{N}[_fixed].json: feature -> {description,
+# judgment}). We keep the ** markers in the shipped sample text (the site's
+# span renderer turns them into <mark> highlights — exactly what the labeler
+# saw) and carry the parsed fire_count as its own column.
+
+SPAN_FIRES_RE = re.compile(r"\s*\(fires (\d+)x in this chunk\)\s*$")
+SPAN_MARK_RE = re.compile(r"\*\*(.+?)\*\*", re.S)
+
+
+def label_from_description(desc, max_len=180):
+    """First sentence of the labeler description, ** markers stripped."""
+    text = SPAN_MARK_RE.sub(r"\1", str(desc)).replace("**", "").strip()
+    # sentence end: .!? optionally followed by a closing quote, then whitespace
+    m = re.search(r"(?<=[.!?])\s|(?<=[.!?][\"”'’])\s", text)
+    if m:
+        text = text[: m.start()].strip()
+    if len(text) > max_len:
+        text = text[: max_len - 1].rstrip() + "…"
+    return text
+
+
+def load_span_inputs(args):
+    """Load span-exemplar + label shards -> df[feature, label, max_act, spans].
+
+    spans is a list (descending activation) of dicts:
+      marked: window text with **fired-token** markers (fires-suffix stripped)
+      plain:  same text without markers (what the layout encoder embeds)
+      fire_count: parsed from the "(fires Nx in this chunk)" suffix
+      activation: span max activation
+    """
+    run = Path(args.run_dir)
+    labels, exemplars = {}, {}
+    for s in range(args.span_shards):
+        lab_path = run / args.span_labels.format(shard=s)
+        if not lab_path.exists():  # fall back to the unrepaired shard
+            fallback = run / args.span_labels.replace("_fixed", "").format(shard=s)
+            log(f"WARN: {lab_path.name} missing, falling back to {fallback.name}")
+            lab_path = fallback
+        lab = json.loads(lab_path.read_text())
+        for k, v in lab["labels"].items():
+            labels[int(k)] = v
+        fl = json.loads((run / args.span_exemplars.format(shard=s)).read_text())
+        for k, v in fl["features"].items():
+            exemplars[int(k)] = v
+    common = sorted(set(labels) & set(exemplars))
+    log(f"span shards: {len(labels)} labels, {len(exemplars)} exemplar sets, {len(common)} joined")
+
+    rows = {"feature": [], "label": [], "max_act": [], "spans": []}
+    for fid in common:
+        spans = []
+        for e in sorted(exemplars[fid], key=lambda e: -e["activation"])[: args.top_n]:
+            m = SPAN_FIRES_RE.search(e["window"])
+            marked = SPAN_FIRES_RE.sub("", e["window"]).strip()
+            spans.append({
+                "marked": marked,
+                "plain": SPAN_MARK_RE.sub(r"\1", marked),
+                "fire_count": int(m.group(1)) if m else 1,
+                "activation": float(e["activation"]),
+            })
+        rows["feature"].append(fid)
+        rows["label"].append(label_from_description(labels[fid]["description"]))
+        rows["max_act"].append(max(s["activation"] for s in spans))
+        rows["spans"].append(spans)
+    return pd.DataFrame(rows)
+
+
+# ----------------------------------------------------------------------------
 # stage: embed
 
 
+def stage_embed_spans(args, work):
+    """Per-token mode: embed the (plain) span text of each feature's exemplars.
+
+    The layout embedding just needs a consistent text encoder — for token SAEs
+    we use --encoder (default all-MiniLM-L6-v2) over the span windows, not the
+    source ColBERT model (per-token models have no pooled encoder to reuse).
+    No SAE forward pass here: the SAE reads 128-d source *token* embeddings,
+    which the span sentence-embeddings are not, so samples ship with empty
+    top_acts/top_indices.
+    """
+    import torch
+
+    torch.set_num_threads(max(1, (os.cpu_count() or 8) - 2))
+    df = load_span_inputs(args)
+    np.save(work / "feature_ids.npy", df["feature"].to_numpy(dtype=np.int64))
+
+    texts, counts = [], []
+    for spans in df["spans"]:
+        texts.extend(s["plain"] for s in spans)
+        counts.append(len(spans))
+    log(f"{len(texts)} span texts across {len(df)} features")
+
+    from sentence_transformers import SentenceTransformer
+
+    model_kwargs = {}
+    if args.fp16:
+        model_kwargs["torch_dtype"] = torch.float16
+    model = SentenceTransformer(
+        args.encoder,
+        device=args.device,
+        trust_remote_code=args.trust_remote_code,
+        model_kwargs=model_kwargs,
+    )
+    t0 = time.time()
+    emb = model.encode(
+        texts,
+        batch_size=args.batch_size,
+        normalize_embeddings=True,
+        convert_to_numpy=True,
+        show_progress_bar=True,
+    ).astype(np.float32)
+    log(f"encoded {len(texts)} span texts in {time.time()-t0:.0f}s -> {emb.shape}")
+
+    offsets = np.concatenate([[0], np.cumsum(counts)])
+    avg = np.zeros((len(df), emb.shape[1]), dtype=np.float32)
+    for i in range(len(df)):
+        avg[i] = emb[offsets[i] : offsets[i + 1]].mean(axis=0)
+    avg /= np.linalg.norm(avg, axis=1, keepdims=True)
+    np.save(work / "feature_avg_emb.npy", avg)
+    log(f"feature averaged span embeddings: {avg.shape}")
+
+
 def stage_embed(args, work):
+    if args.span_exemplars:
+        return stage_embed_spans(args, work)
     import torch
 
     torch.set_num_threads(max(1, (os.cpu_count() or 8) - 2))
@@ -275,7 +417,8 @@ def stage_grid(args, work):
 
 
 def stage_package(args, work):
-    df = load_inputs(args)
+    span_mode = bool(args.span_exemplars)
+    df = load_span_inputs(args) if span_mode else load_inputs(args)
     feats = np.load(work / "feature_ids.npy")
     assert np.array_equal(feats, df["feature"].to_numpy()), "feature set changed since embed stage"
 
@@ -306,35 +449,52 @@ def stage_package(args, work):
     log(f"wrote {out_dir/'features.parquet'} ({len(feature_df)} rows)")
 
     # ---- samples: one row per (feature, exemplar), sharded by 1-D order ----
-    uniq = np.load(work / "chunk_ids.npy")
-    pos = {int(c): i for i, c in enumerate(uniq)}
-    texts = load_texts(args, uniq)
-    # materialize the npz arrays once — NpzFile.__getitem__ re-decompresses the
-    # whole array on every access, which is O(N^2) if done inside the row loop
-    topk = None
-    if (work / "chunk_sae_topk.npz").exists():
-        with np.load(work / "chunk_sae_topk.npz") as z:
-            topk = {"top_acts": z["top_acts"], "top_indices": z["top_indices"]}
-
-    rows = {"id": [], "text": [], "url": [], "feature": [], "activation": [],
-            "top_acts": [], "top_indices": []}
-    for feature, chunks, acts in zip(df["feature"], df["top_chunks"], df["top_acts"]):
-        for c, a in zip(chunks, acts):
-            i = pos[int(c)]
-            rows["id"].append(str(int(c)))
-            rows["text"].append(texts[i])
-            rows["url"].append("")
-            rows["feature"].append(int(feature))
-            rows["activation"].append(float(a))
-            if topk is not None:
-                # sort each sample's top-k descending by activation for display
-                ta, ti = topk["top_acts"][i], topk["top_indices"][i]
-                srt = np.argsort(-ta)
-                rows["top_acts"].append(ta[srt].astype("float64"))
-                rows["top_indices"].append(ti[srt].astype("float64"))
-            else:
+    if span_mode:
+        # per-token schema: text keeps the **fired-token** markers (the site's
+        # span renderer turns them into <mark>), fire_count is its own column,
+        # top_acts/top_indices stay empty (no pooled SAE forward — see embed).
+        rows = {"id": [], "text": [], "url": [], "feature": [], "activation": [],
+                "fire_count": [], "top_acts": [], "top_indices": []}
+        for feature, spans in zip(df["feature"], df["spans"]):
+            for rank, s in enumerate(spans):
+                rows["id"].append(f"{int(feature)}_{rank}")
+                rows["text"].append(s["marked"])
+                rows["url"].append("")
+                rows["feature"].append(int(feature))
+                rows["activation"].append(float(s["activation"]))
+                rows["fire_count"].append(int(s["fire_count"]))
                 rows["top_acts"].append(np.array([], dtype="float64"))
                 rows["top_indices"].append(np.array([], dtype="float64"))
+    else:
+        uniq = np.load(work / "chunk_ids.npy")
+        pos = {int(c): i for i, c in enumerate(uniq)}
+        texts = load_texts(args, uniq)
+        # materialize the npz arrays once — NpzFile.__getitem__ re-decompresses the
+        # whole array on every access, which is O(N^2) if done inside the row loop
+        topk = None
+        if (work / "chunk_sae_topk.npz").exists():
+            with np.load(work / "chunk_sae_topk.npz") as z:
+                topk = {"top_acts": z["top_acts"], "top_indices": z["top_indices"]}
+
+        rows = {"id": [], "text": [], "url": [], "feature": [], "activation": [],
+                "top_acts": [], "top_indices": []}
+        for feature, chunks, acts in zip(df["feature"], df["top_chunks"], df["top_acts"]):
+            for c, a in zip(chunks, acts):
+                i = pos[int(c)]
+                rows["id"].append(str(int(c)))
+                rows["text"].append(texts[i])
+                rows["url"].append("")
+                rows["feature"].append(int(feature))
+                rows["activation"].append(float(a))
+                if topk is not None:
+                    # sort each sample's top-k descending by activation for display
+                    ta, ti = topk["top_acts"][i], topk["top_indices"][i]
+                    srt = np.argsort(-ta)
+                    rows["top_acts"].append(ta[srt].astype("float64"))
+                    rows["top_indices"].append(ti[srt].astype("float64"))
+                else:
+                    rows["top_acts"].append(np.array([], dtype="float64"))
+                    rows["top_indices"].append(np.array([], dtype="float64"))
     samples_df = pd.DataFrame(rows)
     samples_df["feature"] = samples_df["feature"].astype("int64")
     log(f"samples: {len(samples_df)} rows")
@@ -363,6 +523,10 @@ def stage_package(args, work):
         "name": args.name,
         "num_features_labeled": int(len(feature_df)),
     }
+    if span_mode:
+        # per-token models have no pooled encoder; the 2D layout embedded the
+        # span exemplar text with this (arbitrary but consistent) text encoder
+        meta["layout_encoder"] = args.encoder
     ckpt = find_checkpoint(args)
     if ckpt is not None:
         cfg = json.load(open(ckpt / "cfg.json"))
@@ -392,6 +556,12 @@ def main():
     ap.add_argument("--run-dir", required=True, help="SAE experiment run dir")
     ap.add_argument("--exemplars", default="exemplars/exemplars_3M.parquet", help="relative to run-dir")
     ap.add_argument("--labels", default="exemplars/labels_full.parquet", help="relative to run-dir")
+    ap.add_argument("--span-exemplars", default=None,
+                    help="per-token mode: span exemplar shard pattern relative to run-dir, "
+                         "e.g. flagship_span_full_shard{shard}.json (overrides --exemplars/--labels)")
+    ap.add_argument("--span-labels", default="feature_labels_span_full_shard{shard}_fixed.json",
+                    help="per-token mode: label shard pattern (falls back to non-_fixed if missing)")
+    ap.add_argument("--span-shards", type=int, default=4, help="per-token mode: number of shards")
     ap.add_argument("--checkpoint", default=None, help="checkpoint dir relative to run-dir (default: auto)")
     ap.add_argument("--name", required=True, help="model name == web/public/models/<NAME>")
     ap.add_argument("--model-id", default=None)

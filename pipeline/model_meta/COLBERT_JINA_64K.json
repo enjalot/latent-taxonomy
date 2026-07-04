@@ -1,0 +1,21 @@
+{
+  "id": "enjalot/sae-jina-colbert-v2-tokens-64K_32_512",
+  "repo": "enjalot/sae-jina-colbert-v2-tokens-64K",
+  "source_model": "jinaai/jina-colbert-v2",
+  "modality": "per-token",
+  "corpus": "2.02B jina-colbert-v2 token embeddings (128d late-interaction tokens; 506M unique, replay 4x) from FineWeb-edu 10BT 500-token chunks",
+  "corpus_short": "FineWeb-edu (jina-colbert-v2 token embeddings)",
+  "evals": {
+    "fvu": 0.0767,
+    "dead_pct": 0.2,
+    "coherence_stratified": 0.589,
+    "ndcg_recovered": {
+      "scifact": 0.98
+    },
+    "notes": "Held-out 200K token embeddings from the training distribution (FVU 0.0767, dead 0.20% at 65,536 latents / k=32). ndcg_recovered = reconstructed/raw nDCG@10 on SciFact late-interaction (maxsim) retrieval = 0.980. Coherence = COH+THM 58.95% over the FULL live-feature population (n=65,487, not a stratified sample; span-rendered exemplar protocol with fired-token marks; qwen2.5:32b describe+judge, 2026-07-03/04; qwen-judged, uncalibrated). Breakdown: COHERENT 27.3%, THEMATIC 31.6%, GENERIC 33.0%, POLYSEMANTIC 8.0%, UNCLEAR 0.06%. Feature 2D layout embeds each feature's span exemplar texts with all-MiniLM-L6-v2 — a token SAE has no pooled source encoder, so the layout just needs a consistent text encoder.",
+    "coherence_population": 65487
+  },
+  "notes": "Per-token SAE over jina-colbert-v2 token embeddings; samples are ±16-token span windows with **fired-token** markers (fire_count column = fires in the source chunk). HF model repo enjalot/sae-jina-colbert-v2-tokens-64K is a PLACEHOLDER — not yet created or staged.",
+  "samples_base_url": "https://huggingface.co/datasets/enjalot/latent-taxonomy-samples/resolve/main/COLBERT_JINA_64K/samples",
+  "samples_base_url_local": "http://localhost:8787/COLBERT_JINA_64K/samples"
+}

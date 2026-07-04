@@ -26,6 +26,16 @@ function yiq(color) {
 
 const { Title, Paragraph } = Typography;
 
+// Per-token models (metadata.modality: "per-token") ship span exemplars whose
+// fired tokens are wrapped in **markers** — the exact rendering the labeler
+// consumed. Turn the markers into <mark> highlights.
+const spanMarkRe = /\*\*([\s\S]+?)\*\*/g;
+const renderSpanMarks = (text, markClass) => {
+  const parts = String(text).split(spanMarkRe);
+  // split with a capturing group alternates [plain, fired, plain, fired, ...]
+  return parts.map((p, i) => (i % 2 ? <mark key={i} className={markClass}>{p}</mark> : p));
+};
+
 const ActivationBar = ({
   feature,
   activation,
@@ -160,6 +170,10 @@ const FeatureDetails = ({
 
   const featureColor = useMemo(() => interpolateTurbo(feature?.order), [feature])
 
+  // per-token models (e.g. ColBERT SAEs) render span samples with fired-token
+  // highlights; pooled models render plain text, unchanged
+  const isTokenModel = /token/i.test(metadata?.modality || "");
+
   return (
     <div className={styles.details}>
       {!feature ? <>
@@ -193,9 +207,13 @@ const FeatureDetails = ({
           </div>
         </div>
 
-        { samples.length && 
+        { samples.length &&
         <div className={styles.samples}>
-          <h2>Top activating samples</h2>
+          <h2>{isTokenModel ? "Top activating spans" : "Top activating samples"}</h2>
+          {isTokenModel && <div className={styles.spanHint}>
+            Token-level feature: <mark className={styles.tokenMark}>highlighted</mark> tokens
+            are where it fires, shown with ±16 tokens of context.
+          </div>}
           <div>
             {samples.map((sample,i) => (
               <div key={"sample-"+i} className={styles.sample}>
@@ -203,10 +221,17 @@ const FeatureDetails = ({
                   feature={feature}
                   activation={sample.activation}
                 /> */}
-                <div className={styles.sampleId}>{sample.url
+                <div className={styles.sampleId}>{isTokenModel
+                  ? <span className={styles.spanMeta}>
+                      act {Number(sample.activation).toFixed(3)}
+                      {sample.fire_count != null && ` · fires ${Number(sample.fire_count)}× in this chunk`}
+                    </span>
+                  : sample.url
                   ? <a href={sample.url} target="_blank">{sample.id}</a>
                   : <span>{sample.id}</span>}</div>
-                <div className={styles.sampleText}>{sample.text}</div>
+                <div className={styles.sampleText}>{isTokenModel
+                  ? renderSpanMarks(sample.text, styles.tokenMark)
+                  : sample.text}</div>
                 <div className={styles.sampleTopFeatures}>
                   {(sample.top_acts || []).map((act,i) => {
                     // top_indices hold feature ids; look features up by id

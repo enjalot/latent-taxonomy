@@ -20,6 +20,13 @@
       "label": "JINA_STAGEJ_98K",
       "repo": "enjalot/sae-jina-v5-nano-multilingual-98K",
       "metadata": "models/JINA_STAGEJ_98K/metadata.json"
+    },
+    {
+      "id": "enjalot/sae-jina-colbert-v2-tokens-64K_32_512",
+      "name": "COLBERT_JINA_64K",
+      "label": "COLBERT_JINA_64K",
+      "repo": "enjalot/sae-jina-colbert-v2-tokens-64K",
+      "metadata": "models/COLBERT_JINA_64K/metadata.json"
     }
   ]
 }

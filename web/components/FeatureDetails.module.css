@@ -114,3 +114,23 @@
   font-style: italic;
   margin: 8px 0 0 0;
 }
+
+/* per-token (span) sample rendering — fired-token highlights, matching the
+   labeling review app's <mark> convention */
+.tokenMark {
+  background: #ffd54d;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.spanHint {
+  font-size: 11px;
+  color: #777;
+  font-style: italic;
+}
+
+.spanMeta {
+  font-size: 11px;
+  color: #777;
+  font-variant-numeric: tabular-nums;
+}
